@@ -1,0 +1,20 @@
+/* Quicksand and Nunito, latin subset, self-hosted so the game works offline
+   and makes no third-party requests. Both are variable fonts covering the
+   whole weight range we use, so one file each. Licensed under the SIL Open
+   Font License 1.1 - see fonts/OFL-Nunito.txt and fonts/OFL-Quicksand.txt.
+   Note: Quicksand has no weight above 700, so 800 falls back to 700 - that
+   was already true when these loaded from Google. */
+@font-face{
+  font-family:'Nunito';
+  font-style:normal;
+  font-weight:400 800;
+  font-display:swap;
+  src:url(fonts/nunito.woff2) format('woff2');
+}
+@font-face{
+  font-family:'Quicksand';
+  font-style:normal;
+  font-weight:600 700;
+  font-display:swap;
+  src:url(fonts/quicksand.woff2) format('woff2');
+}

@@ -1,13 +1,17 @@
 // Bump this on every deploy - old caches are dropped on activate, and it's
 // what forces a stale service worker to notice there's an update at all.
-var CACHE_NAME = 'corgdoku-v10';
+var CACHE_NAME = 'corgdoku-v11';
 var ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
-  './icon-maskable-512.png'
+  './icon-maskable-512.png',
+  './vendor/fonts.css',
+  './vendor/fonts/nunito.woff2',
+  './vendor/fonts/quicksand.woff2',
+  './vendor/confetti.browser.min.js'
 ];
 
 self.addEventListener('install', function(event){

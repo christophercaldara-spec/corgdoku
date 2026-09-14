@@ -9,7 +9,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-512.png">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Quicksand:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap">
+<link rel="stylesheet" href="vendor/fonts.css">
 <style>
   /*
     Color-scheme tokens are the single source of truth for the palette, but
@@ -682,7 +682,7 @@
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.9.2/confetti.browser.min.js"></script>
+<script src="vendor/confetti.browser.min.js"></script>
 <script>
 (function(){
   "use strict";
@@ -740,6 +740,7 @@
   var COMBO_MAX_STEPS = 4; // caps the bonus at +200 so streaks reward flow without running away
   var HINT_COST = 100;
   var DAILY_KEY = 'corgdoku_daily_v1';
+  var RESUME_KEY = 'corgdoku_resume_v1';
 
   var n = 6;
   var currentLevel = 1;
@@ -1068,6 +1069,19 @@
   function renderLevelCard(){
     var st = loadLevelState();
     var info = sizeInfoForLevel(st.highest);
+    // An unfinished board takes over the main button, so picking up where you
+    // left off is the obvious thing to do rather than a hidden option.
+    var resume = loadResume();
+    if(resume){
+      playLevelBtn.innerHTML = resume.daily
+        ? 'Resume Daily Puzzle'
+        : 'Resume Level <span id="playLevelNum">' + resume.level + '</span>';
+      playLevelBtn.classList.toggle('boss', !resume.daily && sizeInfoForLevel(resume.level).boss);
+      playLevelNumEl = document.getElementById('playLevelNum') || playLevelNumEl;
+      return;
+    }
+    playLevelBtn.innerHTML = 'Play Level <span id="playLevelNum"></span>';
+    playLevelNumEl = document.getElementById('playLevelNum');
     playLevelNumEl.textContent = st.highest + (info.boss ? ' 🐾' : '');
     playLevelBtn.classList.toggle('boss', info.boss);
   }
@@ -1081,6 +1095,7 @@
     gameScreen.hidden = false;
     var info = sizeInfoForLevel(level);
     packLabelEl.textContent = 'Level '+level+(info.boss ? ' 🐾' : '');
+    pushScreen('game');
     startNewPuzzle();
   }
 
@@ -1166,6 +1181,7 @@
     homeScreen.hidden = true;
     gameScreen.hidden = false;
     packLabelEl.textContent = 'Daily · ' + dailyDate.slice(5).replace('-', '/');
+    pushScreen('game');
     startNewPuzzle();
   }
 
@@ -1173,6 +1189,83 @@
   // Progress backup. Everything lives in this phone's local storage, so a
   // wipe or a new phone loses it all without a way to carry it across.
   // ---------------------------------------------------------------------
+  // ---------------------------------------------------------------------
+  // Resume. A phone call or a notification used to throw the whole board
+  // away, so the puzzle in progress is kept and offered back on next launch.
+  // ---------------------------------------------------------------------
+  function saveResume(){
+    if(solved || failed || !regions.length || !board.length) return;
+    try{
+      localStorage.setItem(RESUME_KEY, JSON.stringify({
+        v: 1,
+        n: n,
+        regions: regions,
+        board: board,
+        level: currentLevel,
+        daily: dailyMode,
+        dailyDate: dailyDate,
+        elapsed: elapsedSec,
+        score: score,
+        mistakes: mistakes
+      }));
+    }catch(e){}
+  }
+
+  function clearResume(){
+    try{ localStorage.removeItem(RESUME_KEY); }catch(e){}
+  }
+
+  function loadResume(){
+    var data = null;
+    try{ data = JSON.parse(localStorage.getItem(RESUME_KEY)); }catch(e){ data = null; }
+    if(!data || data.v !== 1) return null;
+    // Anything malformed gets dropped rather than half-restoring a broken board.
+    var size = data.n;
+    if(typeof size !== 'number' || size < 5 || size > 12) return null;
+    if(!Array.isArray(data.regions) || data.regions.length !== size) return null;
+    if(!Array.isArray(data.board) || data.board.length !== size) return null;
+    for(var i=0;i<size;i++){
+      if(!Array.isArray(data.regions[i]) || data.regions[i].length !== size) return null;
+      if(!Array.isArray(data.board[i]) || data.board[i].length !== size) return null;
+    }
+    if(typeof data.mistakes !== 'number' || data.mistakes >= MAX_MISTAKES) return null;
+    return data;
+  }
+
+  function resumeGame(data){
+    dailyMode = !!data.daily;
+    dailyDate = data.dailyDate || '';
+    currentLevel = data.level || 1;
+    n = data.n;
+    regions = data.regions;
+    board = data.board;
+    score = data.score || 0;
+    mistakes = data.mistakes || 0;
+    elapsedSec = data.elapsed || 0;
+    solved = false;
+    failed = false;
+    comboCount = 0;
+    lastFindAt = 0;
+    lastCorgiCount = 0;
+
+    clearHint();
+    homeScreen.hidden = true;
+    gameScreen.hidden = false;
+    packLabelEl.textContent = dailyMode
+      ? 'Daily · ' + dailyDate.slice(5).replace('-', '/')
+      : 'Level ' + currentLevel + (sizeInfoForLevel(currentLevel).boss ? ' 🐾' : '');
+    pushScreen('game');
+
+    setScoreText(score);
+    updateMistakesDisplay();
+    updateScoreDisplay();
+    winOverlay.hidden = true;
+    failOverlay.hidden = true;
+    timerEl.textContent = formatTime(elapsedSec);
+    restartTimer();
+    renderBoard();
+  }
+
   function backupKeys(){
     return [STORAGE_KEY, STATS_KEY, LEVEL_KEY, SCHEME_KEY, MUTE_KEY, DAILY_KEY];
   }
@@ -1222,11 +1315,24 @@
     setTimeout(function(){ location.reload(); }, 700);
   }
 
-  function goHome(){
+  // ---------------------------------------------------------------------
+  // Android's back gesture walks browser history. With a single history entry
+  // the system back would close the app outright from mid-puzzle, which is the
+  // most obviously "this is a web page" thing the app could do. Entering a
+  // level or opening settings pushes an entry, so back means "step back a
+  // screen" and only exits from the home screen.
+  // ---------------------------------------------------------------------
+  function pushScreen(name){
+    if(history.state && history.state.s === name) history.replaceState({s:name}, '');
+    else history.pushState({s:name}, '');
+  }
+
+  function showHomeScreen(){
     if(timerHandle) clearInterval(timerHandle);
     puzzleToken++; // drop any board still being generated
     dailyMode = false;
     clearHint();
+    settingsOverlay.hidden = true;
     gameScreen.hidden = true;
     winOverlay.hidden = true;
     failOverlay.hidden = true;
@@ -1235,6 +1341,29 @@
     renderDailyCard();
     renderStatsGrid();
   }
+
+  // UI "back" affordances go through history so they and the system gesture
+  // can't disagree about where we are.
+  function goHome(){
+    if(history.state && history.state.s) history.back();
+    else showHomeScreen();
+  }
+
+  document.addEventListener('visibilitychange', function(){
+    if(document.hidden) saveResume();
+  });
+
+  window.addEventListener('popstate', function(e){
+    var s = (e.state && e.state.s) || 'home';
+    if(s === 'settings'){ settingsOverlay.hidden = false; return; }
+    settingsOverlay.hidden = true;
+    if(s === 'game'){
+      homeScreen.hidden = true;
+      gameScreen.hidden = false;
+    } else {
+      showHomeScreen();
+    }
+  });
   function setScoreText(v){
     scoreDisplayed = v;
     scoreEl.textContent = v;
@@ -1682,6 +1811,7 @@
   function startNewPuzzle(){
     playLevelStartSound();
     clearHint();
+    clearResume();
     solved = false;
     failed = false;
     mistakes = 0;
@@ -1815,6 +1945,7 @@
 
   function syncCellVisuals(){
     var result = findConflicts();
+    saveResume();
     corgisTrackerEl.textContent = result.placed.length + '/' + n;
     if(result.placed.length > lastCorgiCount){
       corgisTrackerBoxEl.classList.remove('bump');
@@ -2014,6 +2145,7 @@
   function triggerFail(){
     failed = true;
     clearHint();
+    clearResume();
     if(timerHandle) clearInterval(timerHandle);
     failScoreEl.textContent = 'Score: ' + score + ' — try again!';
     failOverlay.hidden = false;
@@ -2027,6 +2159,7 @@
   function onSolved(){
     solved = true;
     clearHint();
+    clearResume();
     if(timerHandle) clearInterval(timerHandle);
 
     var flawless = (mistakes===0);
@@ -2088,7 +2221,11 @@
   winHomeBtn.addEventListener('click', goHome);
   failHomeBtn.addEventListener('click', goHome);
 
-  playLevelBtn.addEventListener('click', function(){ goToLevel(loadLevelState().highest); });
+  playLevelBtn.addEventListener('click', function(){
+    var resume = loadResume();
+    if(resume){ resumeGame(resume); return; }
+    goToLevel(loadLevelState().highest);
+  });
   dailyBtn.addEventListener('click', goToDaily);
   dailyDoneBtn.addEventListener('click', goHome);
   hintBtn.addEventListener('click', showHint);
@@ -2100,8 +2237,11 @@
     updateMuteButton();
     if(!muted){ getAudioCtx(); }
   });
-  settingsBtn.addEventListener('click', function(){ settingsOverlay.hidden = false; });
-  closeSettingsBtn.addEventListener('click', function(){ settingsOverlay.hidden = true; });
+  settingsBtn.addEventListener('click', function(){ settingsOverlay.hidden = false; pushScreen('settings'); });
+  closeSettingsBtn.addEventListener('click', function(){
+    if(history.state && history.state.s === 'settings') history.back();
+    else settingsOverlay.hidden = true;
+  });
 
   var savedScheme = DEFAULT_SCHEME;
   try{ savedScheme = localStorage.getItem(SCHEME_KEY) || DEFAULT_SCHEME; }catch(e){}
