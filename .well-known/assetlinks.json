@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "io.github.christophercaldara_spec.twa",
+        "sha256_cert_fingerprints": ["1C:1C:60:5D:74:D4:1B:74:5A:B2:EB:AE:1F:4B:CF:8E:DC:8D:5F:96:55:1E:A9:D4:D6:19:0D:F0:B2:BA:D3:A3"]
+      }
+    }]

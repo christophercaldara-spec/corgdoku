@@ -1,0 +1,3 @@
+# Generated Android package + signing key - never commit these to a public repo.
+android-build/
+corgdoku-android.zip
