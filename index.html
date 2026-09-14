@@ -97,6 +97,7 @@
   }
 
   /* ---------- Home screen ---------- */
+  #homeScreen{ display:flex; flex-direction:column; gap:1.75rem; }
   .section-label{
     font-family:var(--font-display);
     font-weight:700;
@@ -105,7 +106,6 @@
     text-align:center;
     margin:0 0 .75rem;
   }
-  .home-block + .home-block{ margin-top:1.75rem; }
   .level-card{
     display:flex;
     flex-direction:column;
@@ -447,14 +447,14 @@
 </svg>
 
 <div class="page">
-  <header class="hero">
-    <h1>Corgdoku<span class="dot">.</span></h1>
-    <svg class="leash" viewBox="0 0 260 14"><path d="M2,7 Q32,-2 62,7 T122,7 T182,7 T242,7"/></svg>
-    <p class="tagline">One good boy per yard. No shared paths. No nose-to-nose.</p>
-  </header>
-
   <main>
     <section id="homeScreen">
+      <header class="hero">
+        <h1>Corgdoku<span class="dot">.</span></h1>
+        <svg class="leash" viewBox="0 0 260 14"><path d="M2,7 Q32,-2 62,7 T122,7 T182,7 T242,7"/></svg>
+        <p class="tagline">One good boy per yard. No shared paths. No nose-to-nose.</p>
+      </header>
+
       <div class="home-top-row">
         <button id="settingsBtn" class="icon-btn" title="Settings">⚙️</button>
       </div>
@@ -473,6 +473,21 @@
         <p class="section-label">Your Stats</p>
         <div class="stats-grid" id="statsGrid"></div>
       </div>
+
+      <details class="rules">
+        <summary>How to herd</summary>
+        <ul>
+          <li>Every fenced <b>pasture</b> (colored region) gets exactly <b>one corgi</b>.</li>
+          <li>No two corgis may share a <b>row</b> or a <b>column</b> — each patrols their own lane.</li>
+          <li>Corgis can't stand <b>nose-to-nose diagonally</b> either — give them space.</li>
+          <li>Click (or tap) a cell to leave a <b>paw print</b> — a note to yourself. Click again to clear it.</li>
+          <li>Double-click (or double-tap) a cell to place a <b>corgi</b>. Double-click again to remove it.</li>
+          <li>A wrong corgi leaves a <b>mess</b> behind and costs you a mistake — three and the pack scatters, so you'll restart. Click the mess to clear it, or double-click to try that cell again.</li>
+          <li>Every correct corgi scores points, with a speed bonus that shrinks the longer you take — the faster you herd, the higher your score.</li>
+        </ul>
+      </details>
+
+      <footer class="credit">Corgdoku — a homemade, corgi-flavored logic puzzle.</footer>
     </section>
 
     <section id="gameScreen" hidden>
@@ -496,23 +511,8 @@
       <div class="board-frame">
         <div id="board" class="board" role="grid" aria-label="Corgdoku puzzle board"></div>
       </div>
-
-      <details class="rules">
-        <summary>How to herd</summary>
-        <ul>
-          <li>Every fenced <b>pasture</b> (colored region) gets exactly <b>one corgi</b>.</li>
-          <li>No two corgis may share a <b>row</b> or a <b>column</b> — each patrols their own lane.</li>
-          <li>Corgis can't stand <b>nose-to-nose diagonally</b> either — give them space.</li>
-          <li>Click (or tap) a cell to leave a <b>paw print</b> — a note to yourself. Click again to clear it.</li>
-          <li>Double-click (or double-tap) a cell to place a <b>corgi</b>. Double-click again to remove it.</li>
-          <li>A wrong corgi leaves a <b>mess</b> behind and costs you a mistake — three and the pack scatters, so you'll restart. Click the mess to clear it, or double-click to try that cell again.</li>
-          <li>Every correct corgi scores points, with a speed bonus that shrinks the longer you take — the faster you herd, the higher your score.</li>
-        </ul>
-      </details>
     </section>
   </main>
-
-  <footer class="credit">Corgdoku — a homemade, corgi-flavored logic puzzle.</footer>
 </div>
 
 <div id="winOverlay" class="win-overlay" hidden>
@@ -1079,7 +1079,6 @@
         cell.appendChild(iconWrap);
 
         cell.addEventListener('click', onCellClick);
-        cell.addEventListener('dblclick', onCellDblClick);
         boardEl.appendChild(cell);
         cells[r].push(cell);
       }
@@ -1173,6 +1172,13 @@
     setTimeout(function(){ el.remove(); }, prefersReducedMotion() ? 700 : 1100);
   }
 
+  // Tap-count detection runs entirely off 'click' events rather than also
+  // listening for the browser's native 'dblclick'. Mobile browsers don't
+  // synthesize dblclick from two quick taps as reliably as a desktop mouse
+  // double-click, especially under fast repeated tapping - relying on it
+  // caused single taps to occasionally register as a corgi placement. Doing
+  // our own two-click-within-CLICK_DELAY check keeps both taps on the same
+  // code path so timing is consistent everywhere.
   function onCellClick(e){
     var cell = e.currentTarget;
     if(solved || failed) return;
@@ -1180,22 +1186,13 @@
     if(cell._clickTimer){
       clearTimeout(cell._clickTimer);
       cell._clickTimer = null;
+      applyCorgiToggle(cell, e.clientX, e.clientY);
       return;
     }
     cell._clickTimer = setTimeout(function(){
       cell._clickTimer = null;
       applyPawToggle(cell);
     }, CLICK_DELAY);
-  }
-
-  function onCellDblClick(e){
-    var cell = e.currentTarget;
-    if(solved || failed) return;
-    if(cell._clickTimer){
-      clearTimeout(cell._clickTimer);
-      cell._clickTimer = null;
-    }
-    applyCorgiToggle(cell, e.clientX, e.clientY);
   }
 
   function applyPawToggle(cell){
