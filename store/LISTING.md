@@ -51,6 +51,7 @@ which rule forces it — so it teaches the technique instead of just handing ove
 the answer.
 
 ALSO IN THE BOX
+• A dozen corgis to unlock as you climb, and pick whichever one you like
 • Paw-print notes for marking squares you've ruled out
 • Combo bonuses for finding corgis in quick succession
 • Lifetime stats: win streak, fastest win, corgis found, flawless wins

@@ -1,6 +1,6 @@
 // Bump this on every deploy - old caches are dropped on activate, and it's
 // what forces a stale service worker to notice there's an update at all.
-var CACHE_NAME = 'corgdoku-v12';
+var CACHE_NAME = 'corgdoku-v13';
 var ASSETS = [
   './',
   './index.html',
