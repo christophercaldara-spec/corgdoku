@@ -552,11 +552,11 @@
       <path d="M50,84 Q60,88 62,80" stroke="#F28FA3" stroke-width="7" fill="none" stroke-linecap="round"/>
     </symbol>
     <symbol id="icon-paw" viewBox="0 0 100 100">
-      <ellipse cx="50" cy="66" rx="27" ry="21" fill="currentColor"/>
-      <ellipse cx="20" cy="36" rx="12" ry="15" fill="currentColor"/>
-      <ellipse cx="42" cy="18" rx="11" ry="14" fill="currentColor"/>
-      <ellipse cx="66" cy="18" rx="11" ry="14" fill="currentColor"/>
-      <ellipse cx="86" cy="38" rx="11" ry="14" fill="currentColor"/>
+      <ellipse cx="50" cy="68" rx="30" ry="24" fill="currentColor"/>
+      <ellipse cx="18" cy="38" rx="14" ry="16" fill="currentColor"/>
+      <ellipse cx="41" cy="17" rx="13" ry="15" fill="currentColor"/>
+      <ellipse cx="67" cy="17" rx="13" ry="15" fill="currentColor"/>
+      <ellipse cx="88" cy="40" rx="12" ry="15" fill="currentColor"/>
     </symbol>
   </defs>
 </svg>
@@ -941,6 +941,54 @@
     osc.stop(startTime + duration + 0.02);
   }
 
+  // Same as playTone but through a lowpass, which is what rounds off the
+  // harsh edge of a raw oscillator.
+  function playFilteredTone(ctx, freq, startTime, duration, type, peakGain, cutoff, q){
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    var filter = ctx.createBiquadFilter();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, startTime);
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(cutoff, startTime);
+    filter.Q.value = q || 0.8;
+    gain.gain.setValueAtTime(0.0001, startTime);
+    gain.gain.linearRampToValueAtTime(peakGain, startTime + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+    osc.connect(gain).connect(filter).connect(ctx.destination);
+    osc.start(startTime);
+    osc.stop(startTime + duration + 0.03);
+  }
+
+  // A soft plucked note: a filtered body plus a quieter detuned partner, which
+  // reads as an instrument rather than a beep.
+  function playPluck(ctx, freq, startTime, duration, peakGain){
+    playFilteredTone(ctx, freq, startTime, duration, 'triangle', peakGain, freq * 4, 0.8);
+    playTone(ctx, freq * 1.005, startTime, duration * 0.9, 'sine', peakGain * 0.5);
+  }
+
+  // Filtered noise - pitchless, percussive; used for the tap tick.
+  function playNoiseBurst(ctx, startTime, duration, f0, f1, peakGain, filterType, q){
+    var len = Math.max(1, Math.floor(ctx.sampleRate * duration));
+    var buffer = ctx.createBuffer(1, len, ctx.sampleRate);
+    var data = buffer.getChannelData(0);
+    for(var i=0;i<len;i++) data[i] = Math.random()*2 - 1;
+    var src = ctx.createBufferSource();
+    src.buffer = buffer;
+    var filter = ctx.createBiquadFilter();
+    filter.type = filterType || 'bandpass';
+    filter.Q.value = q || 1;
+    filter.frequency.setValueAtTime(f0, startTime);
+    filter.frequency.exponentialRampToValueAtTime(Math.max(f1, 1), startTime + duration);
+    var gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, startTime);
+    gain.gain.linearRampToValueAtTime(peakGain, startTime + 0.006);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+    src.connect(filter).connect(gain).connect(ctx.destination);
+    src.start(startTime);
+    src.stop(startTime + duration + 0.03);
+  }
+
   // Each step of a combo lifts the pitch, so a streak audibly climbs.
   function playFindSound(combo){
     if(muted) return;
@@ -948,21 +996,26 @@
     if(!ctx) return;
     var step = Math.min(Math.max((combo||1) - 1, 0), COMBO_MAX_STEPS);
     var lift = Math.pow(1.12, step);
-    playToneSweep(ctx, 400*lift, 900*lift, ctx.currentTime, 0.15, 'sine', 0.18);
+    var t = ctx.currentTime;
+    // Warm arpeggio - a rolled major chord, still pitched up by the combo.
+    playPluck(ctx, 523.25*lift, t, 0.20, 0.09);
+    playPluck(ctx, 659.25*lift, t + 0.055, 0.20, 0.09);
+    playPluck(ctx, 783.99*lift, t + 0.11, 0.28, 0.10);
   }
 
   function playMistakeSound(){
     if(muted) return;
     var ctx = getAudioCtx();
     if(!ctx) return;
-    playTone(ctx, 110, ctx.currentTime, 0.18, 'triangle', 0.2);
+    playToneSweep(ctx, 420, 170, ctx.currentTime, 0.22, 'triangle', 0.14);
   }
 
   function playMarkSound(){
     if(muted) return;
     var ctx = getAudioCtx();
     if(!ctx) return;
-    playTone(ctx, 700, ctx.currentTime, 0.05, 'sine', 0.12);
+    // Dry wooden tick: pitchless, so hearing it hundreds of times doesn't grate.
+    playNoiseBurst(ctx, ctx.currentTime, 0.035, 2600, 900, 0.16, 'bandpass', 1.6);
   }
 
   function playWinSound(){
@@ -970,12 +1023,10 @@
     var ctx = getAudioCtx();
     if(!ctx) return;
     var t = ctx.currentTime;
-    playTone(ctx, 523.25, t, 0.12, 'triangle', 0.16);
-    playTone(ctx, 587.33, t + 0.09, 0.12, 'triangle', 0.16);
-    playTone(ctx, 659.25, t + 0.18, 0.12, 'triangle', 0.16);
-    playTone(ctx, 783.99, t + 0.27, 0.12, 'triangle', 0.16);
-    playTone(ctx, 1046.5, t + 0.36, 0.14, 'triangle', 0.18);
-    playTone(ctx, 1318.5, t + 0.5, 0.4, 'triangle', 0.22);
+    var roll = [523.25, 659.25, 783.99, 1046.5];
+    roll.forEach(function(f, i){ playPluck(ctx, f, t + i*0.085, 0.4, 0.10); });
+    // the same chord left ringing underneath the roll
+    roll.forEach(function(f, i){ playTone(ctx, f, t + 0.38 + i*0.005, 0.9, 'sine', 0.045); });
   }
 
   // Plays on the tap that starts a level, which also doubles as the user

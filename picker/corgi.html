@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Corgdoku — Pick the Corgi</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../vendor/fonts.css">
+<style>
+  :root{
+    --bg-top:#F3FBF8; --bg-bottom:#E3F5EE; --surface:#FFFFFF;
+    --ink:#1F3B36; --ink-muted:#5E7B75; --accent:#FF6F61; --frame:#12332C;
+    --shadow:0 1px 2px rgba(30,20,10,.16), 0 4px 10px rgba(30,20,10,.10);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0; min-height:100vh; padding:1.5rem 1rem 4rem;
+    background:linear-gradient(180deg,var(--bg-top),var(--bg-bottom));
+    color:var(--ink); font-family:'Nunito',system-ui,sans-serif;
+  }
+  .page{ max-width:560px; margin:0 auto; }
+  h1{ font-family:'Quicksand',sans-serif; font-weight:700; text-align:center; font-size:1.7rem; margin:0 0 .2rem; }
+  .sub{ text-align:center; color:var(--ink-muted); font-weight:700; font-size:.85rem; margin:0 0 1.4rem; line-height:1.5; }
+  .card{
+    background:var(--surface); border:3px solid transparent; border-radius:18px;
+    padding:1rem .9rem .8rem; box-shadow:var(--shadow); cursor:pointer; margin-bottom:.9rem;
+  }
+  .card.sel{ border-color:var(--accent); }
+  .row{ display:flex; align-items:center; gap:1rem; }
+  .big{ width:104px; height:104px; flex:none; display:block; }
+  .sizes{ display:flex; align-items:center; gap:.55rem; flex-wrap:wrap; }
+  .tile{
+    border-radius:4px; display:flex; align-items:center; justify-content:center;
+    border:2px solid var(--frame); flex:none;
+  }
+  .tile .badge{
+    width:64%; height:64%; border-radius:50%; background:rgba(255,255,255,.92);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .tile .badge svg{ width:82%; height:82%; display:block; }
+  .t-lg{ width:62px; height:62px; }
+  .t-md{ width:46px; height:46px; }
+  .t-sm{ width:30px; height:30px; }
+  .caption{ font-size:.68rem; color:var(--ink-muted); font-weight:700; text-align:center; margin-top:.15rem; }
+  .name{ font-weight:800; font-size:.9rem; margin-top:.6rem; }
+  .name .num{ color:var(--accent); }
+  .note{ font-size:.75rem; color:var(--ink-muted); font-weight:700; margin-top:.15rem; }
+  .summary{
+    position:sticky; bottom:0; margin-top:1.5rem;
+    background:var(--frame); color:#fff; border-radius:14px; padding:.85rem 1rem;
+    font-weight:800; font-size:.9rem; text-align:center;
+  }
+  .summary span{ color:#FFD166; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Pick the corgi</h1>
+  <p class="sub">All in the sticker style you sent. The three tiles show it at the
+  size it actually appears on a small, medium and 12×12 board — that last one is
+  where detail disappears, so judge it there too.</p>
+  <div id="grid"></div>
+  <div class="summary" id="summary">Pick: <span>–</span></div>
+</div>
+
+<script>
+var C = { o:'#F0A04B', d:'#4A2B16', w:'#FFFFFF', p:'#F7A8C4', t:'#F5859F', sh:'#E8D9C5' };
+
+/* Shared pieces, so the family stays consistent across options. */
+function ears(){
+  return `
+    <path d="M27,44 Q14,20 21,7 Q34,7 45,30 Z" fill="${C.o}" stroke="${C.d}" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M73,44 Q86,20 79,7 Q66,7 55,30 Z" fill="${C.o}" stroke="${C.d}" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M30,38 Q23,22 26,15 Q33,17 40,31 Z" fill="${C.p}"/>
+    <path d="M70,38 Q77,22 74,15 Q67,17 60,31 Z" fill="${C.p}"/>`;
+}
+function face(cy, scale){
+  // Eyes sit clearly up on the orange; nose, smile and a tongue big enough to
+  // survive being drawn at 28px.
+  var s = scale || 1;
+  var eyeY = cy - 8*s, noseY = cy + 4*s;
+  return `
+    <ellipse cx="${50-12.5*s}" cy="${eyeY}" rx="${4.2*s}" ry="${4.6*s}" fill="${C.d}"/>
+    <ellipse cx="${50+12.5*s}" cy="${eyeY}" rx="${4.2*s}" ry="${4.6*s}" fill="${C.d}"/>
+    <ellipse cx="${50-11.2*s}" cy="${eyeY-1.4*s}" rx="${1.3*s}" ry="${1.5*s}" fill="#fff"/>
+    <ellipse cx="${50+13.8*s}" cy="${eyeY-1.4*s}" rx="${1.3*s}" ry="${1.5*s}" fill="#fff"/>
+    <ellipse cx="50" cy="${noseY}" rx="${6.2*s}" ry="${4.8*s}" fill="${C.d}"/>
+    <path d="M${50-6*s},${noseY+10*s} Q50,${noseY+18*s} ${50+6*s},${noseY+10*s} Z"
+          fill="${C.t}" stroke="${C.d}" stroke-width="${2.2*s}" stroke-linejoin="round"/>
+    <path d="M50,${noseY+4.4*s} Q50,${noseY+10*s} ${50-8*s},${noseY+9*s}
+             M50,${noseY+4.4*s} Q50,${noseY+10*s} ${50+8*s},${noseY+9*s}"
+          stroke="${C.d}" stroke-width="${3*s}" fill="none" stroke-linecap="round"/>`;
+}
+
+var CORGIS = [
+  { name:'Sitting corgi', note:'Closest to your reference — full body, fluffy chest.', svg:`
+    ${ears()}
+    <path d="M50,52 Q26,56 22,80 Q20,95 34,95 L66,95 Q80,95 78,80 Q74,56 50,52 Z" fill="${C.o}" stroke="${C.d}" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M50,58 Q38,62 35,82 Q33,95 50,95 Q67,95 65,82 Q62,62 50,58 Z" fill="${C.w}" stroke="${C.d}" stroke-width="3.4" stroke-linejoin="round"/>
+    <path d="M36,95 Q35,84 43,84 Q50,84 49,95 Z" fill="${C.w}" stroke="${C.d}" stroke-width="3.6" stroke-linejoin="round"/>
+    <path d="M64,95 Q65,84 57,84 Q50,84 51,95 Z" fill="${C.w}" stroke="${C.d}" stroke-width="3.6" stroke-linejoin="round"/>
+    <ellipse cx="50" cy="40" rx="25" ry="23" fill="${C.o}" stroke="${C.d}" stroke-width="5"/>
+    <path d="M50,20 Q44,28 44,38 Q31,41 29,50 Q32,60 50,60 Q68,60 71,50 Q69,41 56,38 Q56,28 50,20 Z" fill="${C.w}"/>
+    <ellipse cx="50" cy="40" rx="25" ry="23" fill="none" stroke="${C.d}" stroke-width="5"/>
+    ${face(42, 1)}`},
+
+  { name:'Sitting, simplified', note:'Same pose, fewer lines — holds up better when tiny.', svg:`
+    ${ears()}
+    <path d="M50,52 Q26,56 23,80 Q21,95 35,95 L65,95 Q79,95 77,80 Q74,56 50,52 Z" fill="${C.o}" stroke="${C.d}" stroke-width="6" stroke-linejoin="round"/>
+    <path d="M50,60 Q39,64 37,84 Q36,95 50,95 Q64,95 63,84 Q61,64 50,60 Z" fill="${C.w}"/>
+    <path d="M50,52 Q26,56 23,80 Q21,95 35,95 L65,95 Q79,95 77,80 Q74,56 50,52 Z" fill="none" stroke="${C.d}" stroke-width="6" stroke-linejoin="round"/>
+    <ellipse cx="50" cy="40" rx="26" ry="24" fill="${C.o}" stroke="${C.d}" stroke-width="6"/>
+    <path d="M50,19 Q43,28 43,39 Q30,42 28,50 Q31,61 50,61 Q69,61 72,50 Q70,42 57,39 Q57,28 50,19 Z" fill="${C.w}"/>
+    <ellipse cx="50" cy="40" rx="26" ry="24" fill="none" stroke="${C.d}" stroke-width="6"/>
+    ${face(42, 1.05)}`},
+
+  { name:'Head &amp; chest', note:'Cropped bust — fills the round badge best.', svg:`
+    ${ears()}
+    <path d="M50,58 Q24,62 20,95 L80,95 Q76,62 50,58 Z" fill="${C.o}" stroke="${C.d}" stroke-width="5" stroke-linejoin="round"/>
+    <path d="M50,64 Q36,68 33,95 L67,95 Q64,68 50,64 Z" fill="${C.w}" stroke="${C.d}" stroke-width="3.4" stroke-linejoin="round"/>
+    <ellipse cx="50" cy="44" rx="28" ry="26" fill="${C.o}" stroke="${C.d}" stroke-width="5"/>
+    <path d="M50,22 Q43,31 43,42 Q28,45 26,55 Q29,66 50,66 Q71,66 74,55 Q72,45 57,42 Q57,31 50,22 Z" fill="${C.w}"/>
+    <ellipse cx="50" cy="44" rx="28" ry="26" fill="none" stroke="${C.d}" stroke-width="5"/>
+    ${face(46, 1.1)}`},
+
+  { name:'Big head', note:'Cartoon proportions — the face stays readable smallest.', svg:`
+    <path d="M24,50 Q10,22 18,6 Q33,7 45,32 Z" fill="${C.o}" stroke="${C.d}" stroke-width="5.5" stroke-linejoin="round"/>
+    <path d="M76,50 Q90,22 82,6 Q67,7 55,32 Z" fill="${C.o}" stroke="${C.d}" stroke-width="5.5" stroke-linejoin="round"/>
+    <path d="M28,42 Q20,24 23,15 Q31,18 39,33 Z" fill="${C.p}"/>
+    <path d="M72,42 Q80,24 77,15 Q69,18 61,33 Z" fill="${C.p}"/>
+    <path d="M50,70 Q30,72 27,95 L73,95 Q70,72 50,70 Z" fill="${C.o}" stroke="${C.d}" stroke-width="5.5" stroke-linejoin="round"/>
+    <path d="M50,74 Q40,77 38,95 L62,95 Q60,77 50,74 Z" fill="${C.w}"/>
+    <ellipse cx="50" cy="48" rx="31" ry="28" fill="${C.o}" stroke="${C.d}" stroke-width="5.5"/>
+    <path d="M50,24 Q42,34 42,46 Q26,49 24,59 Q27,71 50,71 Q73,71 76,59 Q74,49 58,46 Q58,34 50,24 Z" fill="${C.w}"/>
+    <ellipse cx="50" cy="48" rx="31" ry="28" fill="none" stroke="${C.d}" stroke-width="5.5"/>
+    ${face(50, 1.2)}`},
+
+  { name:'Sitting, bold outline', note:'Heaviest outline — most visible on busy colours.', svg:`
+    <path d="M27,44 Q13,19 21,5 Q35,6 46,30 Z" fill="${C.o}" stroke="${C.d}" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M73,44 Q87,19 79,5 Q65,6 54,30 Z" fill="${C.o}" stroke="${C.d}" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M31,37 Q24,21 27,14 Q34,17 41,31 Z" fill="${C.p}"/>
+    <path d="M69,37 Q76,21 73,14 Q66,17 59,31 Z" fill="${C.p}"/>
+    <path d="M50,52 Q25,56 22,80 Q20,95 35,95 L65,95 Q80,95 78,80 Q75,56 50,52 Z" fill="${C.o}" stroke="${C.d}" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M50,61 Q40,65 38,85 Q37,95 50,95 Q63,95 62,85 Q60,65 50,61 Z" fill="${C.w}"/>
+    <path d="M50,52 Q25,56 22,80 Q20,95 35,95 L65,95 Q80,95 78,80 Q75,56 50,52 Z" fill="none" stroke="${C.d}" stroke-width="7" stroke-linejoin="round"/>
+    <ellipse cx="50" cy="40" rx="26" ry="24" fill="${C.o}" stroke="${C.d}" stroke-width="7"/>
+    <path d="M50,19 Q43,28 43,39 Q30,42 28,50 Q31,61 50,61 Q69,61 72,50 Q70,42 57,39 Q57,28 50,19 Z" fill="${C.w}"/>
+    <ellipse cx="50" cy="40" rx="26" ry="24" fill="none" stroke="${C.d}" stroke-width="7"/>
+    ${face(42, 1.05)}`}
+];
+
+var TILES = ['#3ECCA8','#A58EEB','#EBA58E'];
+var pick = null;
+var grid = document.getElementById('grid');
+
+CORGIS.forEach(function(item, i){
+  var card = document.createElement('div');
+  card.className = 'card';
+  var svg = '<svg viewBox="0 0 100 100">'+item.svg+'</svg>';
+  card.innerHTML =
+    '<div class="row">' +
+      '<svg class="big" viewBox="0 0 100 100">'+item.svg+'</svg>' +
+      '<div class="sizes">' +
+        '<div><div class="tile t-lg" style="background:'+TILES[0]+'"><div class="badge">'+svg+'</div></div><div class="caption">5×5</div></div>' +
+        '<div><div class="tile t-md" style="background:'+TILES[1]+'"><div class="badge">'+svg+'</div></div><div class="caption">8×8</div></div>' +
+        '<div><div class="tile t-sm" style="background:'+TILES[2]+'"><div class="badge">'+svg+'</div></div><div class="caption">12×12</div></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="name"><span class="num">'+(i+1)+'.</span> '+item.name+'</div>' +
+    '<div class="note">'+item.note+'</div>';
+  card.addEventListener('click', function(){
+    pick = i+1;
+    Array.prototype.forEach.call(grid.children, function(c){ c.classList.remove('sel'); });
+    card.classList.add('sel');
+    document.getElementById('summary').innerHTML = 'Pick: <span>'+pick+'. '+item.name+'</span>';
+  });
+  grid.appendChild(card);
+});
+</script>
+</body>
+</html>
