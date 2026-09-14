@@ -169,6 +169,11 @@
   .unlock-banner svg.paw-art{ color:var(--accent); padding:4px; }
   .unlock-text{ text-align:left; font-size:.78rem; font-weight:800; line-height:1.25; }
   .unlock-text small{ display:block; font-size:.66rem; color:var(--ink-muted); font-weight:700; }
+  .next-unlock{
+    margin:.15rem 0 .5rem;
+    font-size:.72rem; font-weight:700; color:var(--ink-muted);
+  }
+  .next-unlock b{ color:var(--accent); }
 
   /* Studio ident. Fixed colours rather than theme ones - it's the same card
      every launch whatever style the player has picked. The fade-out is a CSS
@@ -722,6 +727,7 @@
     <p id="winBest"></p>
     <div id="unlockList"></div>
     <button id="wearUnlockBtn" class="link-btn" hidden>Use it</button>
+    <p id="nextUnlock" class="next-unlock" hidden></p>
     <button id="nextLevelBtn" class="primary">Next Level →</button>
     <button id="dailyDoneBtn" class="primary" hidden>Done</button>
     <button id="playAgainBtn" class="link-btn">Replay this level</button>
@@ -780,6 +786,7 @@
   var pawGridEl = document.getElementById('pawGrid');
   var pawHintEl = document.getElementById('pawHint');
   var unlockListEl = document.getElementById('unlockList');
+  var nextUnlockEl = document.getElementById('nextUnlock');
   var wearUnlockBtn = document.getElementById('wearUnlockBtn');
   var corgiSymbolEl = document.getElementById('icon-corgi');
   var pawSymbolEl = document.getElementById('icon-paw');
@@ -832,6 +839,7 @@
 
   var n = 6;
   var currentLevel = 1;
+  var currentFloor = 1; // minimum technique depth this board is built to need
   var regions = [];
   var board = [];
   var elapsedSec = 0;
@@ -863,16 +871,57 @@
     {n:12, name:"Whole Kennel"}
   ];
 
-  // Levels run 1..infinity. Every 10th level (10, 20, 30...) is a "boss"
-  // level at the hardest size (12x12); the other 9 levels in each block of
-  // 10 cycle through the smaller difficulties so the size grows level over
-  // level before each boss, rather than the player just picking a size directly.
-  var CYCLE_SIZES = [5,6,7,8,9,10,11];
+  // Levels run 1..infinity, in blocks of ten. Every block runs the SAME
+  // rhythm - a warm-up, some that ask more, deliberate breathers at positions
+  // 5 and 8, then a 12x12 boss - and every board size shows up once per block.
+  //
+  // `beat` is where that slot sits on the block's difficulty curve, 0..1. It
+  // never changes. What changes is the tier (below), which stretches the top
+  // of the curve as the player climbs while leaving the bottom anchored, so
+  // the gentle levels stay genuinely gentle at level 900 the same as at level
+  // 9. A block of nothing but hard boards would be exhausting rather than an
+  // achievement, and the easy ones are what make the climb feel like motion.
+  var BLOCK_RHYTHM = [
+    {size:5,  beat:0.00},  // 1  warm-up
+    {size:7,  beat:0.15},  // 2
+    {size:6,  beat:0.40},  // 3
+    {size:9,  beat:0.55},  // 4
+    {size:5,  beat:0.00},  // 5  breather
+    {size:8,  beat:0.50},  // 6
+    {size:10, beat:0.80},  // 7  the block's hard one
+    {size:6,  beat:0.10},  // 8  breather
+    {size:11, beat:0.85},  // 9
+    {size:12, beat:1.00}   // 10 boss
+  ];
+
+  // Four tiers, spread out deliberately: the ramp is meant to be felt over
+  // weeks, not levels. Past tier 3 the shape holds steady - the solver knows
+  // four techniques and boards stop at 12x12, so that's the real ceiling.
+  // Steps land on block boundaries so a block of ten is all one tier - the
+  // rhythm inside it stays the shape the player has learned to expect.
+  function tierForLevel(level){
+    if(level <= 20) return 0;
+    if(level <= 80) return 1;
+    if(level <= 200) return 2;
+    return 3;
+  }
+
+  // A small board can't really be made to need the deepest reasoning, so the
+  // ask is capped by how much room the grid has.
+  function maxFloorForSize(size){
+    return size <= 6 ? 2 : size <= 8 ? 3 : 4;
+  }
+
   function sizeInfoForLevel(level){
+    var slot = BLOCK_RHYTHM[(level - 1) % 10];
     var boss = (level % 10 === 0);
-    var sizeN = boss ? 12 : CYCLE_SIZES[(level - 1) % CYCLE_SIZES.length];
-    var found = SIZES.filter(function(s){ return s.n===sizeN; })[0];
-    return {n:sizeN, name: found ? found.name : '', boss:boss};
+    var found = SIZES.filter(function(s){ return s.n===slot.size; })[0];
+    // span grows with the tier: the hardest slot in the block reaches deeper
+    // each tier, while a beat of 0 stays at floor 1 forever.
+    var span = 1 + tierForLevel(level);
+    var floor = 1 + Math.round(slot.beat * span);
+    floor = Math.min(floor, maxFloorForSize(slot.size), 4);
+    return {n:slot.size, name: found ? found.name : '', boss:boss, floor:floor};
   }
 
   // There's no way to browse to an earlier level - players only ever climb
@@ -1511,10 +1560,11 @@
     dailyMode = false;
     clearHint();
     currentLevel = level;
-    n = sizeInfoForLevel(level).n;
+    var info = sizeInfoForLevel(level);
+    n = info.n;
+    currentFloor = info.floor;
     homeScreen.hidden = true;
     gameScreen.hidden = false;
-    var info = sizeInfoForLevel(level);
     packLabelEl.textContent = 'Level '+level+(info.boss ? ' 🐾' : '');
     pushScreen('game');
     startNewPuzzle();
@@ -1544,7 +1594,11 @@
     var placedCells = [];
     for(var r=0;r<n;r++) for(var c=0;c<n;c++) if(board[r][c]===2) placedCells.push([r,c]);
     var found = null;
-    deduceProgress(n, regions, techniqueCapFor(n), placedCells, function(hr, hc, why){
+    // Run at the deepest cap, not the board's own floor: deduceProgress works
+    // up through the techniques in order, so the first move it finds is the
+    // easiest one available - and a hint must never come up empty on a board
+    // that was built to need harder reasoning.
+    deduceProgress(n, regions, MAX_TECHNIQUE, placedCells, function(hr, hc, why){
       found = {r:hr, c:hc, why:why};
       return false;
     });
@@ -1598,6 +1652,9 @@
     dailyDate = todayKey();
     currentLevel = 0;
     n = dailySizeFor(dailyDate);
+    // The daily sits at a steady middle difficulty rather than following the
+    // ladder - everyone gets the same board whatever level they've reached.
+    currentFloor = 2;
     clearHint();
     homeScreen.hidden = true;
     gameScreen.hidden = false;
@@ -1658,6 +1715,8 @@
     dailyDate = data.dailyDate || '';
     currentLevel = data.level || 1;
     n = data.n;
+    // So "Replay this level" rebuilds at the difficulty this slot asks for.
+    currentFloor = dailyMode ? 2 : sizeInfoForLevel(currentLevel).floor;
     regions = data.regions;
     board = data.board;
     score = data.score || 0;
@@ -2190,39 +2249,58 @@
     return options[Math.floor(rng()*options.length)];
   }
 
-  function techniqueCapFor(size){
-    return size<=7 ? 2 : size<=10 ? 3 : 4;
+  // The deepest technique the solver knows. Hints run at this cap so they can
+  // always find the next move, whatever a board was generated to require.
+  var MAX_TECHNIQUE = 4;
+
+  // How good a candidate layout is, given the difficulty we asked for.
+  //   below size      - not solvable yet; the number is how far it got
+  //   exactly size    - solvable, but ALSO solvable one technique down, so it
+  //                     undershoots what this level slot is supposed to ask
+  //   above size      - what we want: solvable at `floor`, not below it
+  // Grading the too-easy case as a plateau rather than a failure matters: the
+  // search can still walk sideways through it instead of stalling.
+  function layoutFitness(size, grid, floor){
+    var full = deduceProgress(size, grid, floor);
+    if(full < size) return full;
+    if(floor <= 1) return size * 2;
+    var easy = deduceProgress(size, grid, floor - 1);
+    return size + (size - easy);
   }
 
-  function generatePuzzle(size){
-    var maxLevel = techniqueCapFor(size);
-    var maxIters = size<=7 ? 1500 : size<=10 ? 4000 : 6000;
+  function generatePuzzle(size, floor){
+    floor = Math.min(Math.max(floor || 1, 1), maxFloorForSize(size), MAX_TECHNIQUE);
+    var maxIters = size<=7 ? 2500 : size<=10 ? 7000 : 11000;
+    var solvable = null; // best board that's fair but came out easier than asked
     var fallback = null;
 
-    for(var attempt=0; attempt<4; attempt++){
+    for(var attempt=0; attempt<6; attempt++){
       var sol = randomSolution(size);
       var grid = growRegions(size, sol, chooseSingletonRegions(size));
       if(!fallback) fallback = grid;
       var seedKey = {};
       for(var i=0;i<size;i++) seedKey[i+','+sol[i]] = 1;
 
-      var score = deduceProgress(size, grid, maxLevel);
+      var score = layoutFitness(size, grid, floor);
       var iters = 0;
-      while(score < size && iters++ < maxIters){
+      while(score <= size && iters++ < maxIters){
         var mv = randomBorderMove(grid, size, seedKey);
         if(!mv) break;
         var r=mv[0], c=mv[1], toReg=mv[2], fromReg=mv[3];
         grid[r][c] = toReg;
         if(!regionContiguous(grid, size, fromReg)){ grid[r][c] = fromReg; continue; }
-        var next = deduceProgress(size, grid, maxLevel);
+        var next = layoutFitness(size, grid, floor);
         // Accepting equal scores lets the search drift sideways out of dead ends.
         if(next >= score) score = next;
         else grid[r][c] = fromReg;
       }
-      if(score >= size) return {regions:grid};
+      if(score > size) return {regions:grid, floor:floor};
+      // Fair but too easy still beats trying again and running out of budget.
+      if(score >= size && !solvable) solvable = grid;
     }
-    // Never leave the player without a board; a guessy puzzle beats a broken one.
-    return {regions:fallback};
+    // Never leave the player without a board, and never hand them a guessy one
+    // if a fair board was found - difficulty is a preference, fairness isn't.
+    return {regions: solvable || fallback, floor:floor};
   }
 
   // Searching for a fair (fully deducible) layout costs real time on the big
@@ -2263,9 +2341,10 @@
     // still long enough for the browser to paint the screen switch first.
     setTimeout(function(){
       if(token !== puzzleToken) return; // player already moved on; drop this board
+      var floor = currentFloor;
       var puzzle = dailyMode
-        ? withSeed(hashString('corgdoku:' + dailyDate), function(){ return generatePuzzle(size); })
-        : generatePuzzle(size);
+        ? withSeed(hashString('corgdoku:' + dailyDate), function(){ return generatePuzzle(size, floor); })
+        : generatePuzzle(size, floor);
       regions = puzzle.regions;
       board = [];
       for(var r=0;r<size;r++){ board.push(new Array(size).fill(0)); }
@@ -2603,6 +2682,24 @@
       : 'Use them both';
   }
 
+  // What's next on the ladder. The unlocks are otherwise invisible unless you
+  // go digging in settings, and the win card is where the climb is on the
+  // player's mind.
+  function showNextUnlock(fromLevel){
+    var soonest = null;
+    CORGI_SKINS.forEach(function(s){
+      if(s.level > fromLevel && (!soonest || s.level < soonest.level)) soonest = {level:s.level, name:s.name, kind:'corgi'};
+    });
+    PAW_MARKERS.forEach(function(p){
+      if(p.level > fromLevel && (!soonest || p.level < soonest.level)) soonest = {level:p.level, name:p.name, kind:'paw'};
+    });
+    if(!soonest){ nextUnlockEl.hidden = true; return; }
+    var away = soonest.level - fromLevel;
+    nextUnlockEl.innerHTML = 'Next ' + (soonest.kind === 'corgi' ? 'corgi' : 'paw print') +
+      ': <b>' + soonest.name + '</b> in ' + away + (away === 1 ? ' level' : ' levels');
+    nextUnlockEl.hidden = false;
+  }
+
   wearUnlockBtn.addEventListener('click', function(){
     if(!pendingUnlocks.length) return;
     pendingUnlocks.forEach(function(u){
@@ -2653,6 +2750,8 @@
       }
     }
     showUnlock(unlocked);
+    if(dailyMode) nextUnlockEl.hidden = true;
+    else showNextUnlock(loadLevelState().highest);
     nextLevelBtn.hidden = dailyMode;
     dailyDoneBtn.hidden = !dailyMode;
     winHomeBtn.hidden = dailyMode;

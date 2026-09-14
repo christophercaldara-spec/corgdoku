@@ -35,11 +35,16 @@ If it can't, the board is rebuilt. So if you're stuck, there is always a next
 step to find — you're never being asked to flip a coin.
 
 GETS HARDER THE RIGHT WAY
-Levels run from 1 upward, and bigger boards demand sharper reasoning rather
-than just more squares. Early levels only ask you to spot a pasture with one
-square left. Later ones need you to see that two pastures between them own two
-rows, so everything else in those rows is out. Every tenth level is a 12x12
-boss board.
+Levels run from 1 upward in blocks of ten, and every block is a mix: a couple
+of quick ones, a couple that make you work, a breather, then a 12x12 boss.
+Climbing doesn't turn every board into a grind — it raises what the hard ones
+ask of you while leaving the gentle ones gentle, so there's always somewhere
+to catch your breath.
+
+Early on, a board might only ask you to spot a pasture with one square left.
+Further up, the tough ones need you to see that two pastures between them own
+two rows, so everything else in those rows is ruled out. Each board is built
+to need that reasoning — not merely to allow it.
 
 A DAILY PUZZLE YOU CAN SHARE
 Everyone gets the same daily board, generated from the date itself. Compare
@@ -117,9 +122,7 @@ files, so nothing about the player reaches anyone.
 https://christophercaldara-spec.github.io/corgdoku/privacy.html
 ```
 
-**Before submitting:** open `privacy.html` and replace the
-`[add your contact email here]` placeholder with a real address. Play requires
-a reachable contact.
+The contact address on it is christophercaldara@gmail.com.
 
 ## App category
 
