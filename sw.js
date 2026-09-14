@@ -1,5 +1,6 @@
-// Bump this when index.html changes meaningfully - old caches are dropped on activate.
-var CACHE_NAME = 'corgdoku-v1';
+// Bump this on every deploy - old caches are dropped on activate, and it's
+// what forces a stale service worker to notice there's an update at all.
+var CACHE_NAME = 'corgdoku-v2';
 var ASSETS = [
   './',
   './index.html',
@@ -25,18 +26,23 @@ self.addEventListener('activate', function(event){
   self.clients.claim();
 });
 
+// Network-first: always prefer a fresh copy when online (so a new deploy
+// shows up the moment the app is reopened), only falling back to the cache
+// when there's no network at all. A cache-first strategy was tried initially
+// for offline support, but it meant every reopen showed last version's
+// content while quietly fetching this version for "next time" - so updates
+// never visibly landed. Freshness matters more than offline support here.
 self.addEventListener('fetch', function(event){
   if(event.request.method !== 'GET') return;
   event.respondWith(
-    caches.match(event.request).then(function(cached){
-      var network = fetch(event.request).then(function(response){
-        if(response && response.status === 200 && response.type === 'basic'){
-          var copy = response.clone();
-          caches.open(CACHE_NAME).then(function(cache){ cache.put(event.request, copy); });
-        }
-        return response;
-      }).catch(function(){ return cached; });
-      return cached || network;
+    fetch(event.request).then(function(response){
+      if(response && response.status === 200 && response.type === 'basic'){
+        var copy = response.clone();
+        caches.open(CACHE_NAME).then(function(cache){ cache.put(event.request, copy); });
+      }
+      return response;
+    }).catch(function(){
+      return caches.match(event.request);
     })
   );
 });
