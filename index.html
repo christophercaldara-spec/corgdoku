@@ -230,6 +230,13 @@
   /* Paws are lives, so a full paw is one you still have. */
   .mistake-paw svg{ width:26px; height:26px; display:block; color:var(--accent); }
   .mistake-paw.spent svg{ color:var(--surface-border); opacity:.55; }
+  .mistake-paw.danger svg{ color:var(--error); }
+  .mistake-paw.danger{ animation:pawDanger 1.1s ease-in-out infinite; }
+  @keyframes pawDanger{
+    0%, 100%{ transform:scale(1); opacity:1; }
+    50%{ transform:scale(1.18); opacity:.65; }
+  }
+  @media (prefers-reduced-motion: reduce){ .mistake-paw.danger{ animation:none; } }
   .mistake-paw.losing{ animation:pawLost .45s ease both; }
   @keyframes pawLost{
     0%{ transform:scale(1.25) rotate(0deg); }
@@ -385,6 +392,11 @@
     white-space:nowrap;
     z-index:20;
     animation:floatUp 1.1s cubic-bezier(.2,.9,.3,1) forwards;
+  }
+  /* Combo finds read hotter than a lone one. */
+  .float-points.combo{
+    color:#FF8A3D;
+    -webkit-text-stroke-width:3px;
   }
   @keyframes floatUp{
     0%{ transform:translate(-50%,0) scale(.3); opacity:0; }
@@ -658,6 +670,10 @@
   var TIME_BONUS_DECAY = 6;
   var MISTAKE_PENALTY = 75;
   var FLAWLESS_BONUS = 250;
+  // Finds landed within this window of each other chain into a combo.
+  var COMBO_WINDOW = 3000;
+  var COMBO_BONUS = 50;
+  var COMBO_MAX_STEPS = 4; // caps the bonus at +200 so streaks reward flow without running away
 
   var n = 6;
   var currentLevel = 1;
@@ -671,6 +687,11 @@
   var score = 0;
   var lastCorgiCount = 0;
   var puzzleToken = 0;
+  var scoreDisplayed = 0;
+  var scoreAnimHandle = null;
+  var scoreSnapTimer = null;
+  var comboCount = 0;
+  var lastFindAt = 0;
 
   var SIZES = [
     {n:5, name:"Pup"},
@@ -849,11 +870,14 @@
     osc.stop(startTime + duration + 0.02);
   }
 
-  function playFindSound(){
+  // Each step of a combo lifts the pitch, so a streak audibly climbs.
+  function playFindSound(combo){
     if(muted) return;
     var ctx = getAudioCtx();
     if(!ctx) return;
-    playToneSweep(ctx, 400, 900, ctx.currentTime, 0.15, 'sine', 0.18);
+    var step = Math.min(Math.max((combo||1) - 1, 0), COMBO_MAX_STEPS);
+    var lift = Math.pow(1.12, step);
+    playToneSweep(ctx, 400*lift, 900*lift, ctx.currentTime, 0.15, 'sine', 0.18);
   }
 
   function playMistakeSound(){
@@ -998,8 +1022,32 @@
     renderLevelCard();
     renderStatsGrid();
   }
+  function setScoreText(v){
+    scoreDisplayed = v;
+    scoreEl.textContent = v;
+  }
+
+  // The score rolls up to its new value rather than snapping, which makes a
+  // big find feel like it lands.
+  function animateScoreTo(target){
+    if(scoreAnimHandle) cancelAnimationFrame(scoreAnimHandle);
+    if(scoreSnapTimer) clearTimeout(scoreSnapTimer);
+    var from = scoreDisplayed;
+    if(from === target || prefersReducedMotion()){ setScoreText(target); return; }
+    var dur = 420, t0 = performance.now();
+    scoreAnimHandle = requestAnimationFrame(function step(now){
+      var p = Math.min(1, (now - t0) / dur);
+      var eased = 1 - Math.pow(1 - p, 3);
+      setScoreText(Math.round(from + (target - from) * eased));
+      if(p < 1) scoreAnimHandle = requestAnimationFrame(step);
+    });
+    // requestAnimationFrame stops while the page isn't rendering, so make sure
+    // the real number always lands even if the animation never gets to run.
+    scoreSnapTimer = setTimeout(function(){ setScoreText(target); }, dur + 80);
+  }
+
   function updateScoreDisplay(){
-    scoreEl.textContent = score;
+    animateScoreTo(score);
     scoreChipEl.classList.remove('bump');
     void scoreChipEl.offsetWidth;
     scoreChipEl.classList.add('bump');
@@ -1366,6 +1414,9 @@
     failed = false;
     mistakes = 0;
     score = 0;
+    setScoreText(0);
+    comboCount = 0;
+    lastFindAt = 0;
     lastCorgiCount = 0;
     regions = [];
     board = [];
@@ -1533,11 +1584,16 @@
     setTimeout(function(){ if(span.parentNode) span.remove(); }, 500);
   }
 
-  function showFloatingPoints(cell, points){
+  function showFloatingPoints(cell, points, combo){
     var rect = cell.getBoundingClientRect();
     var el = document.createElement('span');
-    el.className = 'float-points';
-    el.textContent = '+' + points;
+    el.className = 'float-points' + (combo >= 2 ? ' combo' : '');
+    el.textContent = '+' + points + (combo >= 2 ? ' ×' + combo : '');
+    if(combo >= 2){
+      // Each step of the streak reads a little louder, up to the bonus cap.
+      var step = Math.min(combo - 1, COMBO_MAX_STEPS);
+      el.style.fontSize = (2.5 + step * 0.28) + 'rem';
+    }
     el.style.left = (rect.left + rect.width/2) + 'px';
     el.style.top = rect.top + 'px';
     document.body.appendChild(el);
@@ -1605,11 +1661,15 @@
     fixed[r] = c;
     if(!rowAlreadyUsed && canComplete(n, regions, fixed)){
       board[r][c] = 2;
-      var pts = pointsForFind();
+      var now = Date.now();
+      comboCount = (lastFindAt && now - lastFindAt <= COMBO_WINDOW) ? comboCount + 1 : 1;
+      lastFindAt = now;
+      var comboBonus = Math.min(comboCount - 1, COMBO_MAX_STEPS) * COMBO_BONUS;
+      var pts = pointsForFind() + comboBonus;
       score += pts;
       updateScoreDisplay();
-      showFloatingPoints(cell, pts);
-      playFindSound();
+      showFloatingPoints(cell, pts, comboCount);
+      playFindSound(comboCount);
       buzz(18);
       loadStats().corgisFound++;
       saveStats();
@@ -1633,6 +1693,8 @@
 
   function flashMistake(cell){
     mistakes++;
+    comboCount = 0;
+    lastFindAt = 0;
     score = Math.max(0, score - MISTAKE_PENALTY);
     updateMistakesDisplay(true);
     updateScoreDisplay();
@@ -1664,6 +1726,8 @@
       span.className = 'mistake-paw' + (spent ? ' spent' : '');
       // The paw that just went out gets the losing flourish, not all of them.
       if(justLost && i === remaining) span.className += ' losing';
+      // Down to the last one: keep it pulsing so the stakes are visible.
+      if(!spent && remaining === 1) span.className += ' danger';
       span.innerHTML = '<svg><use href="#icon-paw"></use></svg>';
       mistakesEl.appendChild(span);
     }
