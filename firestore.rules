@@ -1,0 +1,44 @@
+// Paste this into: Firebase console -> Firestore Database -> Rules -> Publish.
+//
+// This is the only thing protecting the data. The config in
+// firebase-config.js is public by design and protects nothing, so if these
+// rules are wrong, anyone can read and write everything.
+//
+// Default rules are either "locked" (nothing works) or "test mode" (open to
+// the world, and it expires). Neither is what this app wants.
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Your own save. Nobody else can read it or touch it - the pack summary
+    // below is the only thing others ever see.
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    match /packs/{code} {
+      // Any signed-in player can read a pack, because joining by code means
+      // reading it before you're a member. The 6-character code IS the secret:
+      // ~480 million combinations from an alphabet with no lookalike letters.
+      allow read: if request.auth != null;
+
+      // A new pack starts with exactly one member: whoever made it.
+      allow create: if request.auth != null
+        && request.resource.data.members.keys().hasOnly([request.auth.uid]);
+
+      // On update you may only touch the members map, and within it only your
+      // own entry. So a member can join, leave, and post their own progress -
+      // and cannot edit anyone else's numbers or rename the pack out from
+      // under them.
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members'])
+        && request.resource.data.members.diff(resource.data.members)
+             .affectedKeys().hasOnly([request.auth.uid]);
+
+      // Packs are never deleted from the app; leaving just clears your own
+      // pointer to it.
+      allow delete: if false;
+    }
+  }
+}
