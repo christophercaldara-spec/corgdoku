@@ -1,5 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
 <title>Corgdoku</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="description" content="A corgi-themed logic puzzle - one good boy per yard, no shared paths, no nose-to-nose.">
+<meta name="theme-color" content="#FF6F61">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-512.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Quicksand:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap">
 <style>
   /*
@@ -44,6 +53,7 @@
   }
 
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  [hidden]{ display:none !important; }
   html{ touch-action:manipulation; }
   body{
     margin:0;
@@ -406,6 +416,8 @@
     .stats-row{ justify-content:space-between; gap:.75rem; }
   }
 </style>
+</head>
+<body>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
@@ -1343,3 +1355,12 @@
   renderStatsGrid();
 })();
 </script>
+<script>
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('sw.js').catch(function(){});
+    });
+  }
+</script>
+</body>
+</html>

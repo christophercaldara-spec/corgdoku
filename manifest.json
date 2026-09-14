@@ -1,0 +1,16 @@
+{
+  "name": "Corgdoku",
+  "short_name": "Corgdoku",
+  "description": "A corgi-themed logic puzzle - one good boy per yard, no shared paths, no nose-to-nose.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F3FBF8",
+  "theme_color": "#FF6F61",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
