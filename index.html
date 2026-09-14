@@ -1569,8 +1569,12 @@
 
   function applyPawToggle(cell){
     if(solved || failed) return;
-    playMarkSound();
     var r = parseInt(cell.dataset.r,10), c = parseInt(cell.dataset.c,10);
+    // A placed corgi is locked, same as it is for double-taps. Without this a
+    // single tap fell through to the toggle below and overwrote the corgi with
+    // a paw mark, freeing the cell to be scored all over again.
+    if(board[r][c]===2) return;
+    playMarkSound();
     if(board[r][c]===3){
       board[r][c] = 0;
     } else {
