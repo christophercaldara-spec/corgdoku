@@ -165,7 +165,7 @@
   }
   .toolbar-row{ display:flex; flex-wrap:wrap; align-items:center; gap:.75rem 1rem; }
   .util-row{ justify-content:space-between; }
-  .pack-label{ font-weight:800; font-size:.85rem; color:var(--ink-muted); }
+  .pack-label{ font-weight:800; font-size:1.35rem; color:var(--ink); }
   .stats-row{ justify-content:space-around; gap:1rem 1.5rem; }
   .score-chip{
     display:flex;
@@ -487,7 +487,7 @@
           <li>No two corgis may share a <b>row</b> or a <b>column</b> — each patrols their own lane.</li>
           <li>Corgis can't stand <b>nose-to-nose diagonally</b> either — give them space.</li>
           <li>Click (or tap) a cell to leave a <b>paw print</b> — a note to yourself. Click again to clear it.</li>
-          <li>Double-click (or double-tap) a cell to place a <b>corgi</b>. Double-click again to remove it.</li>
+          <li>Double-click (or double-tap) a cell to place a <b>corgi</b> — once it's right, it's locked in for good.</li>
           <li>A wrong corgi leaves a <b>mess</b> behind and costs you a mistake — three and the pack scatters, so you'll restart. Click the mess to clear it, or double-click to try that cell again.</li>
           <li>Every correct corgi scores points, with a speed bonus that shrinks the longer you take — the faster you herd, the higher your score.</li>
         </ul>
@@ -499,7 +499,7 @@
     <section id="gameScreen" hidden>
       <div class="toolbar">
         <div class="toolbar-row util-row">
-          <button id="homeBtn" class="icon-btn" title="Back to home">🏠</button>
+          <button id="homeBtn" class="icon-btn" title="Back to home">←</button>
           <span class="pack-label" id="packLabel"></span>
           <button id="muteBtn" class="icon-btn" title="Mute sound" aria-pressed="false">🔊</button>
         </div>
@@ -951,13 +951,26 @@
     return [...Array(size).keys()];
   }
 
-  function growRegions(size, sol){
+  // Roughly mirrors Meowdoku: most boards get one size-1 "giveaway" region as
+  // an unambiguous starting point (place it, then paw-mark its row/column/
+  // diagonal neighbors as eliminated - that cascades into the rest of the
+  // puzzle without much guessing). Harder boards get this less often, since a
+  // guaranteed freebie matters less once guessing is expected anyway.
+  function chooseSingletonRegions(size){
+    var chance = size<=7 ? 0.9 : size<=9 ? 0.65 : size<=10 ? 0.4 : 0.2;
+    if(Math.random() > chance) return [];
+    return [Math.floor(Math.random()*size)];
+  }
+
+  function growRegions(size, sol, singletons){
+    var singleSet = {};
+    (singletons||[]).forEach(function(i){ singleSet[i]=true; });
     var regionOf = [];
     for(var r=0;r<size;r++){ regionOf.push(new Array(size).fill(-1)); }
     var frontier = [];
     for(var i=0;i<size;i++){
       regionOf[i][sol[i]] = i;
-      pushNeighbors(frontier, size, i, sol[i], i);
+      if(!singleSet[i]) pushNeighbors(frontier, size, i, sol[i], i);
     }
     while(frontier.length){
       var idx = Math.floor(Math.random()*frontier.length);
@@ -1020,7 +1033,8 @@
 
   function generatePuzzle(size){
     var sol = randomSolution(size);
-    var regionGrid = growRegions(size, sol);
+    var singletons = chooseSingletonRegions(size);
+    var regionGrid = growRegions(size, sol, singletons);
     return {regions:regionGrid};
   }
 
@@ -1130,15 +1144,13 @@
 
   function syncCellVisuals(){
     var result = findConflicts();
-    if(result.placed.length !== lastCorgiCount){
-      corgisTrackerEl.textContent = result.placed.length + '/' + n;
-      if(result.placed.length > lastCorgiCount){
-        corgisTrackerBoxEl.classList.remove('bump');
-        void corgisTrackerBoxEl.offsetWidth;
-        corgisTrackerBoxEl.classList.add('bump');
-      }
-      lastCorgiCount = result.placed.length;
+    corgisTrackerEl.textContent = result.placed.length + '/' + n;
+    if(result.placed.length > lastCorgiCount){
+      corgisTrackerBoxEl.classList.remove('bump');
+      void corgisTrackerBoxEl.offsetWidth;
+      corgisTrackerBoxEl.classList.add('bump');
     }
+    lastCorgiCount = result.placed.length;
     for(var r=0;r<n;r++){
       for(var c=0;c<n;c++){
         var cell = boardEl._cells[r][c];
@@ -1225,13 +1237,14 @@
   }
 
   function applyCorgiToggle(cell, clientX, clientY){
-    spawnRipple(cell, clientX, clientY);
     var r = parseInt(cell.dataset.r,10), c = parseInt(cell.dataset.c,10);
-    if(board[r][c]===2){
-      board[r][c] = 0;
-      syncCellVisuals();
-      return;
-    }
+    // A correct corgi is always part of some valid completion (that's what
+    // canComplete already guaranteed when it was placed), so there's never a
+    // real reason to remove one - and allowing it let a double-click/remove/
+    // double-click cycle farm points and the lifetime "corgis found" stat
+    // infinitely. Once right, it's locked in.
+    if(board[r][c]===2) return;
+    spawnRipple(cell, clientX, clientY);
     var fixed = new Array(n).fill(-1);
     var rowAlreadyUsed = false;
     for(var fr=0; fr<n; fr++){
