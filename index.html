@@ -117,6 +117,12 @@
     box-shadow:var(--elevation-1);
   }
   .level-play{ width:100%; font-size:1.3rem; padding:1.1rem 1.5rem; }
+  .level-play.boss{
+    background:linear-gradient(135deg, var(--accent), var(--board-frame));
+    border-color:var(--board-frame);
+    box-shadow:0 0 0 3px rgba(0,0,0,.05), var(--elevation-2);
+  }
+  .level-play.boss:hover{ filter:brightness(1.08); }
   .scheme-row{ display:flex; flex-wrap:wrap; justify-content:center; gap:.7rem; }
   .scheme-swatch{
     width:52px; height:52px;
@@ -186,13 +192,13 @@
     line-height:1;
     font-variant-numeric:tabular-nums;
   }
-  .score-chip.bump{ animation:scoreBump .4s ease; }
+  .score-chip.bump, .tracker.bump{ animation:scoreBump .4s ease; }
   @keyframes scoreBump{
     0%{ transform:scale(1); }
     35%{ transform:scale(1.22); }
     100%{ transform:scale(1); }
   }
-  @media (prefers-reduced-motion: reduce){ .score-chip.bump{ animation:none; } }
+  @media (prefers-reduced-motion: reduce){ .score-chip.bump, .tracker.bump{ animation:none; } }
   .stat{ display:flex; flex-direction:column; gap:.1rem; align-items:flex-start; }
   .stat-label{
     font-size:.75rem;
@@ -574,6 +580,7 @@
   var scoreChipEl = document.querySelector('.score-chip');
   var mistakesEl = document.getElementById('mistakes');
   var corgisTrackerEl = document.getElementById('corgisTracker');
+  var corgisTrackerBoxEl = corgisTrackerEl.parentElement;
   var muteBtn = document.getElementById('muteBtn');
   var winOverlay = document.getElementById('winOverlay');
   var winTimeEl = document.getElementById('winTime');
@@ -604,6 +611,7 @@
   var failed = false;
   var mistakes = 0;
   var score = 0;
+  var lastCorgiCount = 0;
 
   var SIZES = [
     {n:5, name:"Pup"},
@@ -888,6 +896,7 @@
     var st = loadLevelState();
     var info = sizeInfoForLevel(st.highest);
     playLevelNumEl.textContent = st.highest + (info.boss ? ' 🐾' : '');
+    playLevelBtn.classList.toggle('boss', info.boss);
   }
 
   function goToLevel(level){
@@ -1024,6 +1033,7 @@
     failed = false;
     mistakes = 0;
     score = 0;
+    lastCorgiCount = 0;
     updateMistakesDisplay();
     updateScoreDisplay();
     winOverlay.hidden = true;
@@ -1120,7 +1130,15 @@
 
   function syncCellVisuals(){
     var result = findConflicts();
-    corgisTrackerEl.textContent = result.placed.length + '/' + n;
+    if(result.placed.length !== lastCorgiCount){
+      corgisTrackerEl.textContent = result.placed.length + '/' + n;
+      if(result.placed.length > lastCorgiCount){
+        corgisTrackerBoxEl.classList.remove('bump');
+        void corgisTrackerBoxEl.offsetWidth;
+        corgisTrackerBoxEl.classList.add('bump');
+      }
+      lastCorgiCount = result.placed.length;
+    }
     for(var r=0;r<n;r++){
       for(var c=0;c<n;c++){
         var cell = boardEl._cells[r][c];
