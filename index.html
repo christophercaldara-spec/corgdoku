@@ -98,7 +98,7 @@
   }
 
   /* ---------- Home screen ---------- */
-  #homeScreen{ display:flex; flex-direction:column; gap:1.15rem; }
+  #homeScreen{ display:flex; flex-direction:column; gap:1rem; }
   .section-label{
     font-family:var(--font-display);
     font-weight:700;
@@ -113,10 +113,11 @@
     align-items:center;
     background:var(--surface);
     border-radius:18px;
-    padding:1.5rem 1.25rem;
+    padding:1.1rem 1.25rem;
     box-shadow:var(--elevation-1);
   }
-  .level-play{ width:100%; font-size:1.3rem; padding:1.1rem 1.5rem; }
+  .level-play{ width:100%; font-size:1.3rem; padding:1rem 1.5rem; }
+  .daily-btn{ width:100%; margin-top:.6rem; font-size:.85rem; padding:.6rem 1rem; }
   .level-play.boss{
     background:linear-gradient(135deg, var(--accent), var(--board-frame));
     border-color:var(--board-frame);
@@ -145,7 +146,7 @@
     gap:.15rem;
     background:var(--surface);
     border-radius:16px;
-    padding:.8rem .5rem;
+    padding:.7rem .5rem;
     box-shadow:var(--elevation-1);
     text-align:center;
   }
@@ -164,8 +165,19 @@
     box-shadow:var(--elevation-1);
   }
   .toolbar-row{ display:flex; flex-wrap:wrap; align-items:center; gap:.75rem 1rem; }
+  /* Equal-weight side groups keep the level label optically centred even
+     though there are two buttons on the right and one on the left. */
   .util-row{ justify-content:space-between; }
+  .util-side{ display:flex; align-items:center; gap:.4rem; flex:1; }
+  .util-side-end{ justify-content:flex-end; }
   .pack-label{ font-weight:800; font-size:1.35rem; color:var(--ink); }
+  .hint-message{
+    margin:0;
+    text-align:center;
+    font-weight:800;
+    font-size:.85rem;
+    color:var(--accent);
+  }
   .stats-row{ justify-content:space-around; gap:1rem 1.5rem; }
   .score-chip{
     display:flex;
@@ -358,6 +370,14 @@
   .poop-emoji{ display:block; font-size:38cqw; line-height:1; }
   .cell .icon-wrap svg{ display:block; width:78%; height:78%; }
   .cell[data-state="paw"] .icon-wrap svg{ color:var(--paw-ink); width:56%; height:56%; }
+  .cell.hinted{ animation:hintPulse 1.1s ease-in-out infinite; }
+  @keyframes hintPulse{
+    0%, 100%{ box-shadow:inset 0 0 0 3px var(--accent); }
+    50%{ box-shadow:inset 0 0 0 3px transparent; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .cell.hinted{ animation:none; box-shadow:inset 0 0 0 3px var(--accent); }
+  }
   .cell.conflict{ box-shadow:inset 0 0 0 999px var(--error-bg); }
   .cell.conflict .icon-wrap{ animation:nudge .28s ease; }
   @media (prefers-reduced-motion: reduce){ .cell.conflict .icon-wrap{ animation:none; } }
@@ -489,6 +509,22 @@
   .win-card p{ margin:.25rem 0; color:var(--ink-muted); font-weight:700; }
   .win-card .big-time{ font-size:1.3rem; color:var(--ink); font-variant-numeric:tabular-nums; }
   .win-card > button{ margin-top:1rem; width:100%; }
+  .backup-label{ margin-top:1.25rem; }
+  .backup-box{
+    width:100%;
+    border-radius:12px;
+    border:1.5px solid var(--surface-border);
+    background:var(--bg-top);
+    color:var(--ink);
+    font-family:'Nunito', sans-serif;
+    font-size:.72rem;
+    padding:.5rem .6rem;
+    resize:vertical;
+    word-break:break-all;
+  }
+  .backup-row{ display:flex; gap:.5rem; margin-top:.5rem; }
+  .backup-row button{ flex:1; font-size:.8rem; padding:.5rem .6rem; }
+  .backup-status{ margin:.5rem 0 0; font-size:.75rem; font-weight:700; color:var(--ink-muted); min-height:1em; }
   .win-card .link-btn{ margin-top:.6rem; width:auto; }
 
   @media (max-width: 480px){
@@ -538,6 +574,7 @@
       <div class="home-block">
         <div class="level-card">
           <button type="button" id="playLevelBtn" class="primary level-play">Play Level <span id="playLevelNum">1</span></button>
+          <button type="button" id="dailyBtn" class="daily-btn">🗓️ Daily Puzzle · <span id="dailyStatus">—</span></button>
         </div>
       </div>
       <div class="home-block">
@@ -555,6 +592,9 @@
           <li>Double-click (or double-tap) a cell to place a <b>corgi</b> — once it's right, it's locked in for good.</li>
           <li>A wrong corgi leaves a <b>mess</b> behind and costs you a mistake — three and the pack scatters, so you'll restart. Click the mess to clear it, or double-click to try that cell again.</li>
           <li>Every correct corgi scores points, with a speed bonus that shrinks the longer you take — the faster you herd, the higher your score.</li>
+          <li>Find several in quick succession for a <b>combo</b> — the streak pays a bonus on every corgi after the first.</li>
+          <li>Stuck? The 💡 button points at a square you can work out right now and tells you which rule forces it. Costs a little score.</li>
+          <li>Every puzzle can be solved by logic alone — you should never have to guess.</li>
         </ul>
       </details>
 
@@ -564,10 +604,16 @@
     <section id="gameScreen" hidden>
       <div class="toolbar">
         <div class="toolbar-row util-row">
-          <button id="homeBtn" class="icon-btn" title="Back to home">←</button>
+          <div class="util-side">
+            <button id="homeBtn" class="icon-btn" title="Back to home">←</button>
+          </div>
           <span class="pack-label" id="packLabel"></span>
-          <button id="muteBtn" class="icon-btn" title="Mute sound" aria-pressed="false">🔊</button>
+          <div class="util-side util-side-end">
+            <button id="hintBtn" class="icon-btn" title="Show me a square I can work out">💡</button>
+            <button id="muteBtn" class="icon-btn" title="Mute sound" aria-pressed="false">🔊</button>
+          </div>
         </div>
+        <p class="hint-message" id="hintMessage" hidden></p>
         <div class="toolbar-row stats-row">
           <div class="score-chip">
             <span class="score-label">Score</span>
@@ -603,6 +649,7 @@
     <p id="winScore"></p>
     <p id="winBest"></p>
     <button id="nextLevelBtn" class="primary">Next Level →</button>
+    <button id="dailyDoneBtn" class="primary" hidden>Done</button>
     <button id="playAgainBtn" class="link-btn">Replay this level</button>
     <button id="winHomeBtn" class="link-btn">Back to home</button>
   </div>
@@ -623,6 +670,14 @@
     <h2>Settings</h2>
     <p class="section-label">Choose a style</p>
     <div class="scheme-row" id="schemeRow"></div>
+    <p class="section-label backup-label">Backup &amp; restore</p>
+    <textarea id="backupBox" class="backup-box" rows="3" spellcheck="false"
+      placeholder="Tap Copy progress to get a code. To move to a new phone, paste a code here and tap Restore."></textarea>
+    <div class="backup-row">
+      <button type="button" id="exportBtn">Copy progress</button>
+      <button type="button" id="importBtn">Restore</button>
+    </div>
+    <p id="backupStatus" class="backup-status"></p>
     <button id="closeSettingsBtn" class="primary">Done</button>
   </div>
 </div>
@@ -650,6 +705,15 @@
   var scoreChipEl = document.querySelector('.score-chip');
   var mistakesEl = document.getElementById('mistakes');
   var corgisTrackerEl = document.getElementById('corgisTracker');
+  var hintBtn = document.getElementById('hintBtn');
+  var hintMessageEl = document.getElementById('hintMessage');
+  var dailyBtn = document.getElementById('dailyBtn');
+  var dailyStatusEl = document.getElementById('dailyStatus');
+  var dailyDoneBtn = document.getElementById('dailyDoneBtn');
+  var backupBox = document.getElementById('backupBox');
+  var exportBtn = document.getElementById('exportBtn');
+  var importBtn = document.getElementById('importBtn');
+  var backupStatusEl = document.getElementById('backupStatus');
   var corgisTrackerBoxEl = corgisTrackerEl.parentElement;
   var muteBtn = document.getElementById('muteBtn');
   var winOverlay = document.getElementById('winOverlay');
@@ -674,6 +738,8 @@
   var COMBO_WINDOW = 3000;
   var COMBO_BONUS = 50;
   var COMBO_MAX_STEPS = 4; // caps the bonus at +200 so streaks reward flow without running away
+  var HINT_COST = 100;
+  var DAILY_KEY = 'corgdoku_daily_v1';
 
   var n = 6;
   var currentLevel = 1;
@@ -692,6 +758,10 @@
   var scoreSnapTimer = null;
   var comboCount = 0;
   var lastFindAt = 0;
+  var dailyMode = false;
+  var dailyDate = '';
+  var hintedCell = null;
+  var hintTimer = null;
 
   var SIZES = [
     {n:5, name:"Pup"},
@@ -1003,6 +1073,8 @@
   }
 
   function goToLevel(level){
+    dailyMode = false;
+    clearHint();
     currentLevel = level;
     n = sizeInfoForLevel(level).n;
     homeScreen.hidden = true;
@@ -1012,14 +1084,155 @@
     startNewPuzzle();
   }
 
+  // ---------------------------------------------------------------------
+  // Hints. The same solver that vets a layout during generation can also say
+  // what the next forced move is from where the player currently stands, and
+  // which rule forces it - so a hint teaches the technique instead of just
+  // handing over an answer.
+  // ---------------------------------------------------------------------
+  var HINT_TEXT = {
+    region: "This pasture's corgi can only fit here.",
+    row: "This row's corgi can only fit here.",
+    col: "This column's corgi can only fit here."
+  };
+
+  function clearHint(){
+    if(hintTimer){ clearTimeout(hintTimer); hintTimer = null; }
+    if(hintedCell){ hintedCell.classList.remove('hinted'); hintedCell = null; }
+    hintMessageEl.hidden = true;
+  }
+
+  function showHint(){
+    if(solved || failed) return;
+    if(!regions.length || !boardEl._cells) return;
+    var placedCells = [];
+    for(var r=0;r<n;r++) for(var c=0;c<n;c++) if(board[r][c]===2) placedCells.push([r,c]);
+    var found = null;
+    deduceProgress(n, regions, techniqueCapFor(n), placedCells, function(hr, hc, why){
+      found = {r:hr, c:hc, why:why};
+      return false;
+    });
+    clearHint();
+    if(!found){
+      hintMessageEl.textContent = 'Nothing left to point at.';
+      hintMessageEl.hidden = false;
+      hintTimer = setTimeout(clearHint, 4000);
+      return;
+    }
+    score = Math.max(0, score - HINT_COST);
+    updateScoreDisplay();
+    hintedCell = boardEl._cells[found.r][found.c];
+    hintedCell.classList.add('hinted');
+    hintMessageEl.textContent = HINT_TEXT[found.why] || 'This one can be worked out now.';
+    hintMessageEl.hidden = false;
+    hintTimer = setTimeout(clearHint, 9000);
+  }
+
+  // ---------------------------------------------------------------------
+  // Daily puzzle: seeded from the date, so every phone builds the identical
+  // board for a given day with nothing coordinating them.
+  // ---------------------------------------------------------------------
+  function loadDaily(){
+    try{ return JSON.parse(localStorage.getItem(DAILY_KEY)) || {}; }catch(e){ return {}; }
+  }
+  function saveDaily(obj){
+    try{ localStorage.setItem(DAILY_KEY, JSON.stringify(obj)); }catch(e){}
+  }
+  function recordDailyResult(dateKey, secs, pts){
+    var all = loadDaily();
+    var prev = all[dateKey] || {};
+    all[dateKey] = {
+      time: (typeof prev.time === 'number') ? Math.min(prev.time, secs) : secs,
+      score: (typeof prev.score === 'number') ? Math.max(prev.score, pts) : pts
+    };
+    saveDaily(all);
+  }
+
+  function renderDailyCard(){
+    var key = todayKey();
+    var done = loadDaily()[key];
+    var size = dailySizeFor(key);
+    dailyStatusEl.textContent = done
+      ? 'done in ' + formatTime(done.time)
+      : size + '×' + size + ' today';
+  }
+
+  function goToDaily(){
+    dailyMode = true;
+    dailyDate = todayKey();
+    currentLevel = 0;
+    n = dailySizeFor(dailyDate);
+    clearHint();
+    homeScreen.hidden = true;
+    gameScreen.hidden = false;
+    packLabelEl.textContent = 'Daily · ' + dailyDate.slice(5).replace('-', '/');
+    startNewPuzzle();
+  }
+
+  // ---------------------------------------------------------------------
+  // Progress backup. Everything lives in this phone's local storage, so a
+  // wipe or a new phone loses it all without a way to carry it across.
+  // ---------------------------------------------------------------------
+  function backupKeys(){
+    return [STORAGE_KEY, STATS_KEY, LEVEL_KEY, SCHEME_KEY, MUTE_KEY, DAILY_KEY];
+  }
+  function setBackupStatus(msg){ backupStatusEl.textContent = msg; }
+
+  function exportProgress(){
+    var data = {};
+    backupKeys().forEach(function(k){
+      try{ var v = localStorage.getItem(k); if(v !== null) data[k] = v; }catch(e){}
+    });
+    var code;
+    try{ code = btoa(JSON.stringify({v:1, data:data})); }
+    catch(e){ setBackupStatus("Couldn't build a code on this device."); return; }
+    backupBox.value = code;
+    backupBox.focus();
+    backupBox.select();
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(code).then(function(){
+        setBackupStatus('Copied — paste it somewhere safe.');
+      }, function(){
+        setBackupStatus('Select the code above and copy it.');
+      });
+    } else {
+      setBackupStatus('Select the code above and copy it.');
+    }
+  }
+
+  function importProgress(){
+    var code = (backupBox.value || '').trim();
+    if(!code){ setBackupStatus('Paste a backup code above first.'); return; }
+    var parsed = null;
+    try{ parsed = JSON.parse(atob(code)); }catch(e){ parsed = null; }
+    if(!parsed || !parsed.data || typeof parsed.data !== 'object'){
+      setBackupStatus("That code didn't look right.");
+      return;
+    }
+    // Only write keys this game owns, so a bad paste can't scatter junk around.
+    var allowed = {};
+    backupKeys().forEach(function(k){ allowed[k] = true; });
+    var restored = 0;
+    Object.keys(parsed.data).forEach(function(k){
+      if(!allowed[k]) return;
+      try{ localStorage.setItem(k, parsed.data[k]); restored++; }catch(e){}
+    });
+    if(!restored){ setBackupStatus("That code didn't hold any progress."); return; }
+    setBackupStatus('Restored. Reloading…');
+    setTimeout(function(){ location.reload(); }, 700);
+  }
+
   function goHome(){
     if(timerHandle) clearInterval(timerHandle);
     puzzleToken++; // drop any board still being generated
+    dailyMode = false;
+    clearHint();
     gameScreen.hidden = true;
     winOverlay.hidden = true;
     failOverlay.hidden = true;
     homeScreen.hidden = false;
     renderLevelCard();
+    renderDailyCard();
     renderStatsGrid();
   }
   function setScoreText(v){
@@ -1057,9 +1270,53 @@
     return BASE_POINTS + Math.round(bonus);
   }
 
+  // All puzzle generation draws from rng() rather than Math.random directly, so
+  // the daily board can be generated from a fixed seed and come out identical
+  // on every phone without a server deciding anything.
+  var rng = Math.random;
+
+  function mulberry32(seed){
+    var a = seed >>> 0;
+    return function(){
+      a = (a + 0x6D2B79F5) >>> 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function hashString(str){
+    var h = 2166136261 >>> 0;
+    for(var i=0;i<str.length;i++){
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619) >>> 0;
+    }
+    return h >>> 0;
+  }
+
+  function withSeed(seed, fn){
+    var prev = rng;
+    rng = mulberry32(seed);
+    try{ return fn(); }
+    finally{ rng = prev; }
+  }
+
+  // Local date, not UTC - the two of you are in the same place, and "today"
+  // should mean today's date on the phone rather than a rollover at some odd hour.
+  function todayKey(){
+    var d = new Date();
+    var m = d.getMonth()+1, day = d.getDate();
+    return d.getFullYear() + '-' + (m<10?'0'+m:m) + '-' + (day<10?'0'+day:day);
+  }
+
+  function dailySizeFor(dateKey){
+    var choices = [6,7,8,9,10];
+    return choices[hashString(dateKey + ':size') % choices.length];
+  }
+
   function shuffle(arr){
     for(var i=arr.length-1;i>0;i--){
-      var j = Math.floor(Math.random()*(i+1));
+      var j = Math.floor(rng()*(i+1));
       var t=arr[i]; arr[i]=arr[j]; arr[j]=t;
     }
     return arr;
@@ -1086,8 +1343,8 @@
   // guaranteed freebie matters less once guessing is expected anyway.
   function chooseSingletonRegions(size){
     var chance = size<=7 ? 0.9 : size<=9 ? 0.65 : size<=10 ? 0.4 : 0.2;
-    if(Math.random() > chance) return [];
-    return [Math.floor(Math.random()*size)];
+    if(rng() > chance) return [];
+    return [Math.floor(rng()*size)];
   }
 
   function growRegions(size, sol, singletons){
@@ -1101,7 +1358,7 @@
       if(!singleSet[i]) pushNeighbors(frontier, size, i, sol[i], i);
     }
     while(frontier.length){
-      var idx = Math.floor(Math.random()*frontier.length);
+      var idx = Math.floor(rng()*frontier.length);
       var item = frontier.splice(idx,1)[0];
       if(regionOf[item.r][item.c] !== -1) continue;
       regionOf[item.r][item.c] = item.region;
@@ -1189,7 +1446,11 @@
   }
 
   // Returns how many corgis pure deduction can pin down (size === fully solvable).
-  function deduceProgress(size, regionGrid, maxLevel){
+  // seed: cells the player has already placed, pre-applied before deducing.
+  // onPlace(r,c,why): called for each deduced placement; return false to stop.
+  // Both are optional - layout search calls this with neither and just reads
+  // back how far deduction got.
+  function deduceProgress(size, regionGrid, maxLevel, seed, onPlace){
     var cand = [];
     for(var r=0;r<size;r++){
       cand.push(new Array(size));
@@ -1199,8 +1460,9 @@
     var placedCol = new Array(size).fill(false);
     var placedRegion = new Array(size).fill(false);
     var placedCount = 0;
+    var aborted = false;
 
-    function place(r,c){
+    function applyPlacement(r,c){
       placedCount++;
       var reg = regionGrid[r][c];
       placedRow[r]=true; placedCol[c]=true; placedRegion[reg]=true;
@@ -1212,6 +1474,14 @@
         var nr=r+dr, nc=c+dc;
         if(nr>=0&&nr<size&&nc>=0&&nc<size) cand[nr][nc]=false;
       }
+    }
+    function place(r,c,why){
+      applyPlacement(r,c);
+      if(onPlace && onPlace(r,c,why) === false) aborted = true;
+    }
+
+    if(seed){
+      for(var s=0;s<seed.length;s++) applyPlacement(seed[s][0], seed[s][1]);
     }
     function regionMasks(){
       var m=[];
@@ -1284,6 +1554,7 @@
 
     var guard=0;
     while(placedCount<size && guard++ < size*size*6){
+      if(aborted) return placedCount;
       var progress=false;
       var m = regionMasks();
 
@@ -1292,7 +1563,7 @@
         if(m[reg].count===0) return placedCount;
         if(m[reg].count===1){
           for(var r=0;r<size && !progress;r++) for(var c=0;c<size;c++){
-            if(regionGrid[r][c]===reg && cand[r][c]){ place(r,c); progress=true; break; }
+            if(regionGrid[r][c]===reg && cand[r][c]){ place(r,c,'region'); progress=true; break; }
           }
         }
       }
@@ -1303,7 +1574,7 @@
         if(placedRow[r2]) continue;
         if(lm.rows[r2].count===0) return placedCount;
         if(lm.rows[r2].count===1){
-          for(var c2=0;c2<size;c2++) if(cand[r2][c2]){ place(r2,c2); progress=true; break; }
+          for(var c2=0;c2<size;c2++) if(cand[r2][c2]){ place(r2,c2,'row'); progress=true; break; }
         }
       }
       if(progress) continue;
@@ -1311,7 +1582,7 @@
         if(placedCol[c3]) continue;
         if(lm.cols[c3].count===0) return placedCount;
         if(lm.cols[c3].count===1){
-          for(var r3=0;r3<size;r3++) if(cand[r3][c3]){ place(r3,c3); progress=true; break; }
+          for(var r3=0;r3<size;r3++) if(cand[r3][c3]){ place(r3,c3,'col'); progress=true; break; }
         }
       }
       if(progress) continue;
@@ -1366,7 +1637,7 @@
       }
     }
     if(!options.length) return null;
-    return options[Math.floor(Math.random()*options.length)];
+    return options[Math.floor(rng()*options.length)];
   }
 
   function techniqueCapFor(size){
@@ -1410,6 +1681,7 @@
   // Play just looks like nothing happened until the board suddenly appears.
   function startNewPuzzle(){
     playLevelStartSound();
+    clearHint();
     solved = false;
     failed = false;
     mistakes = 0;
@@ -1440,7 +1712,9 @@
     // still long enough for the browser to paint the screen switch first.
     setTimeout(function(){
       if(token !== puzzleToken) return; // player already moved on; drop this board
-      var puzzle = generatePuzzle(size);
+      var puzzle = dailyMode
+        ? withSeed(hashString('corgdoku:' + dailyDate), function(){ return generatePuzzle(size); })
+        : generatePuzzle(size);
       regions = puzzle.regions;
       board = [];
       for(var r=0;r<size;r++){ board.push(new Array(size).fill(0)); }
@@ -1455,6 +1729,9 @@
     if(timerHandle) clearInterval(timerHandle);
     timerHandle = setInterval(function(){
       if(solved || failed) return;
+      // Put the phone down and the clock stops, so walking away mid-puzzle
+      // doesn't quietly ruin your Fastest Win.
+      if(document.hidden) return;
       elapsedSec++;
       timerEl.textContent = formatTime(elapsedSec);
     }, 1000);
@@ -1661,6 +1938,7 @@
     fixed[r] = c;
     if(!rowAlreadyUsed && canComplete(n, regions, fixed)){
       board[r][c] = 2;
+      clearHint();
       var now = Date.now();
       comboCount = (lastFindAt && now - lastFindAt <= COMBO_WINDOW) ? comboCount + 1 : 1;
       lastFindAt = now;
@@ -1735,6 +2013,7 @@
 
   function triggerFail(){
     failed = true;
+    clearHint();
     if(timerHandle) clearInterval(timerHandle);
     failScoreEl.textContent = 'Score: ' + score + ' — try again!';
     failOverlay.hidden = false;
@@ -1747,6 +2026,7 @@
 
   function onSolved(){
     solved = true;
+    clearHint();
     if(timerHandle) clearInterval(timerHandle);
 
     var flawless = (mistakes===0);
@@ -1767,11 +2047,21 @@
     var isNewBest = (typeof prevBest !== 'number') || score > prevBest;
     if(isNewBest){ best[n]=score; writeBest(best); }
 
-    var lvl = loadLevelState();
-    if(currentLevel === lvl.highest){
-      lvl.highest = lvl.highest + 1;
-      saveLevelState();
+    // The daily is its own thing - it records a result for the date rather
+    // than pushing the level counter forward.
+    if(dailyMode){
+      recordDailyResult(dailyDate, elapsedSec, score);
+    } else {
+      var lvl = loadLevelState();
+      if(currentLevel === lvl.highest){
+        lvl.highest = lvl.highest + 1;
+        saveLevelState();
+      }
     }
+    nextLevelBtn.hidden = dailyMode;
+    dailyDoneBtn.hidden = !dailyMode;
+    winHomeBtn.hidden = dailyMode;
+    playAgainBtn.textContent = dailyMode ? "Replay today's puzzle" : 'Replay this level';
 
     winTimeEl.textContent = 'Solved in ' + formatTime(elapsedSec);
     winScoreEl.textContent = 'Score: ' + score + (flawless ? ' (flawless +'+FLAWLESS_BONUS+'!)' : '');
@@ -1799,6 +2089,11 @@
   failHomeBtn.addEventListener('click', goHome);
 
   playLevelBtn.addEventListener('click', function(){ goToLevel(loadLevelState().highest); });
+  dailyBtn.addEventListener('click', goToDaily);
+  dailyDoneBtn.addEventListener('click', goHome);
+  hintBtn.addEventListener('click', showHint);
+  exportBtn.addEventListener('click', exportProgress);
+  importBtn.addEventListener('click', importProgress);
   muteBtn.addEventListener('click', function(){
     muted = !muted;
     try{ localStorage.setItem(MUTE_KEY, muted ? '1' : '0'); }catch(e){}
@@ -1813,6 +2108,7 @@
   applyScheme(savedScheme);
   updateMuteButton();
   renderLevelCard();
+  renderDailyCard();
   renderStatsGrid();
 })();
 </script>
