@@ -279,6 +279,18 @@
     gap:0;
     box-shadow:var(--elevation-3);
   }
+  .board-loading{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    /* The board frame is dark-to-mid in every scheme, so this is readable
+       everywhere without needing a per-scheme token. */
+    color:rgba(255,255,255,.85);
+    font-family:var(--font-display);
+    font-weight:800;
+    font-size:1rem;
+    text-align:center;
+  }
   .cell{
     position:relative;
     appearance:none;
@@ -612,6 +624,7 @@
   var mistakes = 0;
   var score = 0;
   var lastCorgiCount = 0;
+  var puzzleToken = 0;
 
   var SIZES = [
     {n:5, name:"Pup"},
@@ -911,6 +924,7 @@
 
   function goHome(){
     if(timerHandle) clearInterval(timerHandle);
+    puzzleToken++; // drop any board still being generated
     gameScreen.hidden = true;
     winOverlay.hidden = true;
     failOverlay.hidden = true;
@@ -1031,31 +1045,292 @@
     return found;
   }
 
-  function generatePuzzle(size){
-    var sol = randomSolution(size);
-    var singletons = chooseSingletonRegions(size);
-    var regionGrid = growRegions(size, sol, singletons);
-    return {regions:regionGrid};
+  // ---------------------------------------------------------------------
+  // Deduction solver + layout search.
+  //
+  // A randomly-grown region layout is essentially never uniquely solvable
+  // once the board gets big (a random 12x12 measured *hundreds* of valid
+  // arrangements), which means there is genuinely nothing to deduce and the
+  // player can only guess. So instead of hoping a random layout is fair, we
+  // search for one: grow a layout, then repeatedly nudge single cells across
+  // region borders, keeping any nudge that lets a no-guessing solver get
+  // further, until the whole board falls out by pure logic.
+  //
+  // maxLevel caps which techniques the player is assumed to use, which is
+  // what makes bigger boards harder rather than just larger:
+  //   1 = a region/row/column with one square left
+  //   2 = + a region penned into a single row or column
+  //   3 = + two regions sharing exactly two rows/columns
+  //   4 = + the same for three
+  // ---------------------------------------------------------------------
+  function popcount(x){ var b=0; while(x){ b += x&1; x >>= 1; } return b; }
+
+  function combinations(arr, k){
+    var out=[];
+    (function rec(start, cur){
+      if(cur.length===k){ out.push(cur.slice()); return; }
+      for(var i=start;i<arr.length;i++){ cur.push(arr[i]); rec(i+1, cur); cur.pop(); }
+    })(0, []);
+    return out;
   }
 
+  // Returns how many corgis pure deduction can pin down (size === fully solvable).
+  function deduceProgress(size, regionGrid, maxLevel){
+    var cand = [];
+    for(var r=0;r<size;r++){
+      cand.push(new Array(size));
+      for(var c=0;c<size;c++) cand[r][c] = (regionGrid[r][c] !== -1);
+    }
+    var placedRow = new Array(size).fill(false);
+    var placedCol = new Array(size).fill(false);
+    var placedRegion = new Array(size).fill(false);
+    var placedCount = 0;
+
+    function place(r,c){
+      placedCount++;
+      var reg = regionGrid[r][c];
+      placedRow[r]=true; placedCol[c]=true; placedRegion[reg]=true;
+      for(var i=0;i<size;i++){ cand[r][i]=false; cand[i][c]=false; }
+      for(var rr=0;rr<size;rr++) for(var cc=0;cc<size;cc++){
+        if(regionGrid[rr][cc]===reg) cand[rr][cc]=false;
+      }
+      for(var dr=-1;dr<=1;dr++) for(var dc=-1;dc<=1;dc++){
+        var nr=r+dr, nc=c+dc;
+        if(nr>=0&&nr<size&&nc>=0&&nc<size) cand[nr][nc]=false;
+      }
+    }
+    function regionMasks(){
+      var m=[];
+      for(var i=0;i<size;i++) m.push({rows:0, cols:0, count:0});
+      for(var r=0;r<size;r++) for(var c=0;c<size;c++){
+        if(cand[r][c]){
+          var reg=regionGrid[r][c];
+          m[reg].rows |= (1<<r); m[reg].cols |= (1<<c); m[reg].count++;
+        }
+      }
+      return m;
+    }
+    function lineMasks(){
+      var rows=[], cols=[];
+      for(var i=0;i<size;i++){ rows.push({regs:0,count:0}); cols.push({regs:0,count:0}); }
+      for(var r=0;r<size;r++) for(var c=0;c<size;c++){
+        if(cand[r][c]){
+          var reg=regionGrid[r][c];
+          rows[r].regs |= (1<<reg); rows[r].count++;
+          cols[c].regs |= (1<<reg); cols[c].count++;
+        }
+      }
+      return {rows:rows, cols:cols};
+    }
+
+    function regionSubsetPass(m, regs, k, axis){
+      var combos = combinations(regs, k);
+      for(var i=0;i<combos.length;i++){
+        var mask=0;
+        for(var j=0;j<combos[i].length;j++) mask |= m[combos[i][j]][axis];
+        if(popcount(mask)!==k) continue;
+        var regSet={}, changed=false;
+        combos[i].forEach(function(x){ regSet[x]=1; });
+        for(var line=0; line<size; line++){
+          if(!(mask & (1<<line))) continue;
+          for(var other=0; other<size; other++){
+            var rr = axis==='rows' ? line : other;
+            var cc = axis==='rows' ? other : line;
+            if(cand[rr][cc] && !regSet[regionGrid[rr][cc]]){ cand[rr][cc]=false; changed=true; }
+          }
+        }
+        if(changed) return true;
+      }
+      return false;
+    }
+
+    function lineSubsetPass(k, axis){
+      var lmm = lineMasks();
+      var arr = axis==='rows' ? lmm.rows : lmm.cols;
+      var placedArr = axis==='rows' ? placedRow : placedCol;
+      var idxs=[];
+      for(var i=0;i<size;i++) if(!placedArr[i] && arr[i].count>0) idxs.push(i);
+      var combos = combinations(idxs, k);
+      for(var i2=0;i2<combos.length;i2++){
+        var mask=0;
+        for(var j2=0;j2<combos[i2].length;j2++) mask |= arr[combos[i2][j2]].regs;
+        if(popcount(mask)!==k) continue;
+        var lineSet={}, changed=false;
+        combos[i2].forEach(function(x){ lineSet[x]=1; });
+        for(var r5=0;r5<size;r5++) for(var c5=0;c5<size;c5++){
+          if(!cand[r5][c5]) continue;
+          var lineIdx = axis==='rows' ? r5 : c5;
+          if(lineSet[lineIdx]) continue;
+          if(mask & (1<<regionGrid[r5][c5])){ cand[r5][c5]=false; changed=true; }
+        }
+        if(changed) return true;
+      }
+      return false;
+    }
+
+    var guard=0;
+    while(placedCount<size && guard++ < size*size*6){
+      var progress=false;
+      var m = regionMasks();
+
+      for(var reg=0; reg<size && !progress; reg++){
+        if(placedRegion[reg]) continue;
+        if(m[reg].count===0) return placedCount;
+        if(m[reg].count===1){
+          for(var r=0;r<size && !progress;r++) for(var c=0;c<size;c++){
+            if(regionGrid[r][c]===reg && cand[r][c]){ place(r,c); progress=true; break; }
+          }
+        }
+      }
+      if(progress) continue;
+
+      var lm = lineMasks();
+      for(var r2=0; r2<size && !progress; r2++){
+        if(placedRow[r2]) continue;
+        if(lm.rows[r2].count===0) return placedCount;
+        if(lm.rows[r2].count===1){
+          for(var c2=0;c2<size;c2++) if(cand[r2][c2]){ place(r2,c2); progress=true; break; }
+        }
+      }
+      if(progress) continue;
+      for(var c3=0; c3<size && !progress; c3++){
+        if(placedCol[c3]) continue;
+        if(lm.cols[c3].count===0) return placedCount;
+        if(lm.cols[c3].count===1){
+          for(var r3=0;r3<size;r3++) if(cand[r3][c3]){ place(r3,c3); progress=true; break; }
+        }
+      }
+      if(progress) continue;
+      if(maxLevel < 2) break;
+
+      var unplacedRegs = [];
+      for(var i2=0;i2<size;i2++) if(!placedRegion[i2] && m[i2].count>0) unplacedRegs.push(i2);
+      var maxK = maxLevel>=4 ? 3 : maxLevel>=3 ? 2 : 1;
+
+      for(var k=1; k<=maxK && !progress; k++){
+        progress = regionSubsetPass(m, unplacedRegs, k, 'rows') || regionSubsetPass(m, unplacedRegs, k, 'cols');
+      }
+      if(progress) continue;
+      for(var k2=1; k2<=maxK && !progress; k2++){
+        progress = lineSubsetPass(k2, 'rows') || lineSubsetPass(k2, 'cols');
+      }
+      if(!progress) break;
+    }
+    return placedCount;
+  }
+
+  function regionContiguous(grid, size, reg){
+    var cells=[];
+    for(var r=0;r<size;r++) for(var c=0;c<size;c++) if(grid[r][c]===reg) cells.push([r,c]);
+    if(!cells.length) return false;
+    var seen={}, stack=[cells[0]], count=1;
+    seen[cells[0][0]+','+cells[0][1]]=1;
+    var deltas=[[-1,0],[1,0],[0,-1],[0,1]];
+    while(stack.length){
+      var p=stack.pop();
+      for(var d=0;d<4;d++){
+        var nr=p[0]+deltas[d][0], nc=p[1]+deltas[d][1];
+        if(nr<0||nr>=size||nc<0||nc>=size) continue;
+        if(grid[nr][nc]!==reg) continue;
+        var key=nr+','+nc;
+        if(seen[key]) continue;
+        seen[key]=1; count++; stack.push([nr,nc]);
+      }
+    }
+    return count === cells.length;
+  }
+
+  function randomBorderMove(grid, size, seedKey){
+    var options=[], deltas=[[-1,0],[1,0],[0,-1],[0,1]];
+    for(var r=0;r<size;r++) for(var c=0;c<size;c++){
+      if(seedKey[r+','+c]) continue;
+      var mine=grid[r][c];
+      for(var d=0;d<4;d++){
+        var nr=r+deltas[d][0], nc=c+deltas[d][1];
+        if(nr<0||nr>=size||nc<0||nc>=size) continue;
+        if(grid[nr][nc]!==mine) options.push([r,c,grid[nr][nc],mine]);
+      }
+    }
+    if(!options.length) return null;
+    return options[Math.floor(Math.random()*options.length)];
+  }
+
+  function techniqueCapFor(size){
+    return size<=7 ? 2 : size<=10 ? 3 : 4;
+  }
+
+  function generatePuzzle(size){
+    var maxLevel = techniqueCapFor(size);
+    var maxIters = size<=7 ? 1500 : size<=10 ? 4000 : 6000;
+    var fallback = null;
+
+    for(var attempt=0; attempt<4; attempt++){
+      var sol = randomSolution(size);
+      var grid = growRegions(size, sol, chooseSingletonRegions(size));
+      if(!fallback) fallback = grid;
+      var seedKey = {};
+      for(var i=0;i<size;i++) seedKey[i+','+sol[i]] = 1;
+
+      var score = deduceProgress(size, grid, maxLevel);
+      var iters = 0;
+      while(score < size && iters++ < maxIters){
+        var mv = randomBorderMove(grid, size, seedKey);
+        if(!mv) break;
+        var r=mv[0], c=mv[1], toReg=mv[2], fromReg=mv[3];
+        grid[r][c] = toReg;
+        if(!regionContiguous(grid, size, fromReg)){ grid[r][c] = fromReg; continue; }
+        var next = deduceProgress(size, grid, maxLevel);
+        // Accepting equal scores lets the search drift sideways out of dead ends.
+        if(next >= score) score = next;
+        else grid[r][c] = fromReg;
+      }
+      if(score >= size) return {regions:grid};
+    }
+    // Never leave the player without a board; a guessy puzzle beats a broken one.
+    return {regions:fallback};
+  }
+
+  // Searching for a fair (fully deducible) layout costs real time on the big
+  // boards - a few hundred ms, more on a phone. That's a blocking loop, so we
+  // reset and paint the screen first and only then generate, otherwise tapping
+  // Play just looks like nothing happened until the board suddenly appears.
   function startNewPuzzle(){
-    var puzzle = generatePuzzle(n);
-    regions = puzzle.regions;
-    board = [];
-    for(var r=0;r<n;r++){ board.push(new Array(n).fill(0)); }
     solved = false;
     failed = false;
     mistakes = 0;
     score = 0;
     lastCorgiCount = 0;
+    regions = [];
+    board = [];
     updateMistakesDisplay();
     updateScoreDisplay();
     winOverlay.hidden = true;
     failOverlay.hidden = true;
     elapsedSec = 0;
     timerEl.textContent = '0:00';
-    restartTimer();
-    renderBoard();
+    corgisTrackerEl.textContent = '0/' + n;
+
+    boardEl.innerHTML = '<span class="board-loading">Rounding up the pack…</span>';
+    boardEl.style.gridTemplateColumns = '1fr';
+    boardEl.style.gridTemplateRows = '1fr';
+
+    var size = n;
+    var token = ++puzzleToken;
+    // Deliberately a timeout rather than requestAnimationFrame: rAF doesn't
+    // fire while the page isn't rendering (backgrounded tab, screen off), which
+    // would leave the board stuck on the loading message. A short delay is
+    // still long enough for the browser to paint the screen switch first.
+    setTimeout(function(){
+      if(token !== puzzleToken) return; // player already moved on; drop this board
+      var puzzle = generatePuzzle(size);
+      regions = puzzle.regions;
+      board = [];
+      for(var r=0;r<size;r++){ board.push(new Array(size).fill(0)); }
+      elapsedSec = 0;
+      timerEl.textContent = '0:00';
+      restartTimer();
+      renderBoard();
+    }, 30);
   }
 
   function restartTimer(){
