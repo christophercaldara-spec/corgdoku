@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Corgdoku — Pick the Art &amp; Sounds</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../vendor/fonts.css">
+<style>
+  :root{
+    --bg-top:#F3FBF8; --bg-bottom:#E3F5EE; --surface:#FFFFFF; --surface-border:#D6ECE5;
+    --ink:#1F3B36; --ink-muted:#5E7B75; --accent:#FF6F61; --accent-ink:#FFFFFF;
+    --frame:#12332C;
+    --shadow:0 1px 2px rgba(30,20,10,.16), 0 4px 10px rgba(30,20,10,.10);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0; min-height:100vh; padding:1.5rem 1rem 4rem;
+    background:linear-gradient(180deg,var(--bg-top),var(--bg-bottom));
+    color:var(--ink); font-family:'Nunito',system-ui,sans-serif;
+  }
+  .page{ max-width:720px; margin:0 auto; }
+  h1{ font-family:'Quicksand',sans-serif; font-weight:700; text-align:center; font-size:1.9rem; margin:0 0 .2rem; }
+  .sub{ text-align:center; color:var(--ink-muted); font-weight:700; font-size:.9rem; margin:0 0 1.5rem; }
+  h2{
+    font-family:'Quicksand',sans-serif; font-weight:700; font-size:1.15rem;
+    margin:2rem 0 .2rem; text-align:center;
+  }
+  .hint{ text-align:center; color:var(--ink-muted); font-size:.8rem; font-weight:700; margin:0 0 .9rem; }
+
+  .grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:.7rem; }
+  @media(min-width:560px){ .grid{ grid-template-columns:repeat(3,1fr); } }
+  .card{
+    background:var(--surface); border:2.5px solid transparent; border-radius:16px;
+    padding:.7rem .6rem .6rem; box-shadow:var(--shadow); cursor:pointer; text-align:center;
+  }
+  .card.sel{ border-color:var(--accent); }
+  .card .name{ font-weight:800; font-size:.78rem; margin-top:.45rem; }
+  .card .num{ color:var(--accent); }
+
+  /* art previews */
+  .big{ width:76px; height:76px; display:block; margin:0 auto; }
+  .tiles{ display:flex; gap:5px; justify-content:center; margin-top:.5rem; }
+  .tile{
+    width:34px; height:34px; border-radius:4px; display:flex; align-items:center; justify-content:center;
+    border:2px solid var(--frame);
+  }
+  .tile .badge{
+    width:64%; height:64%; border-radius:50%; background:rgba(255,255,255,.92);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .tile .badge svg{ width:80%; height:80%; display:block; }
+
+  /* paw previews */
+  .paw-lives{ display:flex; gap:.3rem; justify-content:center; align-items:center; }
+  .paw-lives svg{ width:26px; height:26px; display:block; }
+  .paw-live{ color:var(--accent); }
+  .paw-spent{ color:var(--surface-border); opacity:.55; }
+  .paw-note{ color:var(--ink); }
+
+  /* sounds */
+  .sound{
+    display:flex; align-items:center; gap:.6rem; background:var(--surface);
+    border:2.5px solid transparent; border-radius:14px; padding:.6rem .7rem;
+    box-shadow:var(--shadow); margin-bottom:.5rem; cursor:pointer;
+  }
+  .sound.sel{ border-color:var(--accent); }
+  .sound .idx{
+    flex:none; width:30px; height:30px; border-radius:50%; background:var(--accent);
+    color:var(--accent-ink); font-weight:800; display:flex; align-items:center; justify-content:center;
+    font-size:.85rem;
+  }
+  .sound .meta{ flex:1; text-align:left; }
+  .sound .meta b{ display:block; font-size:.88rem; }
+  .sound .meta span{ font-size:.75rem; color:var(--ink-muted); font-weight:700; }
+  .sound .play{
+    flex:none; border:none; border-radius:999px; background:var(--frame); color:#fff;
+    font-family:'Nunito',sans-serif; font-weight:800; font-size:.78rem; padding:.45rem .85rem; cursor:pointer;
+  }
+
+  .summary{
+    position:sticky; bottom:0; margin-top:2rem;
+    background:var(--frame); color:#fff; border-radius:14px; padding:.85rem 1rem;
+    font-weight:800; font-size:.85rem; text-align:center; line-height:1.5;
+  }
+  .summary span{ color:#FFD166; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Pick the look &amp; sound</h1>
+  <p class="sub">Tap a card to choose it. Tell me the numbers and I'll swap them into the game.</p>
+
+  <h2>Corgi piece</h2>
+  <p class="hint">Big preview, then how it actually reads on real board tiles.</p>
+  <div class="grid" id="corgiGrid"></div>
+
+  <h2>Paw print</h2>
+  <p class="hint">Shown as your lives (2 left, 1 spent) and as a note on a tile.</p>
+  <div class="grid" id="pawGrid"></div>
+
+  <h2>Tap — leaving a paw note</h2>
+  <p class="hint">You hear this the most, so it wants to be quiet.</p>
+  <div id="tapList"></div>
+
+  <h2>Correct — corgi found</h2>
+  <div id="findList"></div>
+
+  <h2>Mistake</h2>
+  <div id="missList"></div>
+
+  <h2>Level complete</h2>
+  <div id="winList"></div>
+
+  <h2>Level start</h2>
+  <div id="startList"></div>
+
+  <div class="summary" id="summary"></div>
+</div>
+
+<script>
+/* ---------------- art ---------------- */
+var CORGIS = [
+  { name:'Winking (current)', svg:`
+    <path d="M30,40 Q16,36 12,22 Q10,12 20,12 Q34,15 40,30 Q42,37 34,40 Q31,41 30,40 Z" fill="#E39A46" stroke="#3B2412" stroke-width="4.5" stroke-linejoin="round"/>
+    <path d="M70,40 Q84,36 88,22 Q90,12 80,12 Q66,15 60,30 Q58,37 66,40 Q69,41 70,40 Z" fill="#E39A46" stroke="#3B2412" stroke-width="4.5" stroke-linejoin="round"/>
+    <path d="M31,36 Q21,32 18,21 Q17,14 23,15 Q31,18 35,28 Q36,33 31,36 Z" fill="#F9EEDD"/>
+    <path d="M69,36 Q79,32 82,21 Q83,14 77,15 Q69,18 65,28 Q64,33 69,36 Z" fill="#F9EEDD"/>
+    <path d="M26,34 L74,34 Q90,34 88,58 Q86,80 50,92 Q14,80 12,58 Q10,34 26,34 Z" fill="#F9EEDD"/>
+    <path d="M26,34 L74,34 Q90,34 88,58 L12,58 Q10,34 26,34 Z" fill="#E8A754"/>
+    <path d="M26,34 L74,34 Q90,34 88,58 Q86,80 50,92 Q14,80 12,58 Q10,34 26,34 Z" fill="none" stroke="#3B2412" stroke-width="5" stroke-linejoin="round"/>
+    <ellipse cx="28" cy="69" rx="6" ry="4" fill="#F0879E" opacity=".45"/>
+    <ellipse cx="72" cy="69" rx="6" ry="4" fill="#F0879E" opacity=".45"/>
+    <path d="M32,54 Q37,50 42,54" stroke="#241608" stroke-width="3.2" fill="none" stroke-linecap="round"/>
+    <ellipse cx="63" cy="56" rx="4.3" ry="5.2" fill="#241608"/>
+    <path d="M44,72 Q50,68 56,72 Q56,78 50,80 Q44,78 44,72 Z" fill="#241608"/>
+    <path d="M50,84 Q60,88 62,80" stroke="#F28FA3" stroke-width="7" fill="none" stroke-linecap="round"/>`},
+
+  { name:'Tidy classic', svg:`
+    <path d="M30,40 Q16,36 12,22 Q10,12 20,12 Q34,15 40,30 Q42,37 34,40 Q31,41 30,40 Z" fill="#E39A46" stroke="#3B2412" stroke-width="4.5" stroke-linejoin="round"/>
+    <path d="M70,40 Q84,36 88,22 Q90,12 80,12 Q66,15 60,30 Q58,37 66,40 Q69,41 70,40 Z" fill="#E39A46" stroke="#3B2412" stroke-width="4.5" stroke-linejoin="round"/>
+    <path d="M31,36 Q21,32 18,21 Q17,14 23,15 Q31,18 35,28 Q36,33 31,36 Z" fill="#F9EEDD"/>
+    <path d="M69,36 Q79,32 82,21 Q83,14 77,15 Q69,18 65,28 Q64,33 69,36 Z" fill="#F9EEDD"/>
+    <path d="M26,34 L74,34 Q90,34 88,58 Q86,80 50,92 Q14,80 12,58 Q10,34 26,34 Z" fill="#F9EEDD"/>
+    <path d="M26,34 L74,34 Q90,34 88,58 L12,58 Q10,34 26,34 Z" fill="#E8A754"/>
+    <path d="M26,34 L74,34 Q90,34 88,58 Q86,80 50,92 Q14,80 12,58 Q10,34 26,34 Z" fill="none" stroke="#3B2412" stroke-width="5" stroke-linejoin="round"/>
+    <ellipse cx="37" cy="55" rx="4.6" ry="5.4" fill="#241608"/>
+    <ellipse cx="63" cy="55" rx="4.6" ry="5.4" fill="#241608"/>
+    <ellipse cx="38.4" cy="53.4" rx="1.5" ry="1.7" fill="#fff"/>
+    <ellipse cx="64.4" cy="53.4" rx="1.5" ry="1.7" fill="#fff"/>
+    <path d="M44,71 Q50,67 56,71 Q56,77 50,79 Q44,77 44,71 Z" fill="#241608"/>
+    <path d="M50,79 L50,84 M50,84 Q43,84 41,80 M50,84 Q57,84 59,80" stroke="#241608" stroke-width="2.6" fill="none" stroke-linecap="round"/>`},
+
+  { name:'Flat modern', svg:`
+    <path d="M20,36 L30,2 L50,32 Z" fill="#D98C3A"/>
+    <path d="M80,36 L70,2 L50,32 Z" fill="#D98C3A"/>
+    <path d="M26,32 L31,13 L42,30 Z" fill="#F6DCC0"/>
+    <path d="M74,32 L69,13 L58,30 Z" fill="#F6DCC0"/>
+    <rect x="14" y="28" width="72" height="58" rx="26" fill="#E8A754"/>
+    <path d="M14,58 Q14,86 50,86 Q86,86 86,58 Z" fill="#F9EEDD"/>
+    <circle cx="36" cy="52" r="5" fill="#3B2412"/>
+    <circle cx="64" cy="52" r="5" fill="#3B2412"/>
+    <ellipse cx="50" cy="66" rx="7" ry="5.5" fill="#3B2412"/>
+    <ellipse cx="26" cy="68" rx="6" ry="4" fill="#F0879E" opacity=".5"/>
+    <ellipse cx="74" cy="68" rx="6" ry="4" fill="#F0879E" opacity=".5"/>`},
+
+  { name:'Bold &amp; simple', svg:`
+    <path d="M22,40 L30,4 L52,32 Z" fill="#E39A46" stroke="#2E1B0D" stroke-width="6" stroke-linejoin="round"/>
+    <path d="M78,40 L70,4 L48,32 Z" fill="#E39A46" stroke="#2E1B0D" stroke-width="6" stroke-linejoin="round"/>
+    <circle cx="50" cy="58" r="32" fill="#E8A754" stroke="#2E1B0D" stroke-width="6"/>
+    <path d="M22,62 Q22,90 50,90 Q78,90 78,62 Z" fill="#F9EEDD"/>
+    <circle cx="50" cy="58" r="32" fill="none" stroke="#2E1B0D" stroke-width="6"/>
+    <circle cx="38" cy="54" r="5.5" fill="#2E1B0D"/>
+    <circle cx="62" cy="54" r="5.5" fill="#2E1B0D"/>
+    <ellipse cx="50" cy="70" rx="8" ry="6" fill="#2E1B0D"/>`},
+
+  { name:'Soft &amp; round', svg:`
+    <path d="M22,42 Q18,10 32,6 Q44,14 47,36 Z" fill="#E8A754"/>
+    <path d="M78,42 Q82,10 68,6 Q56,14 53,36 Z" fill="#E8A754"/>
+    <path d="M27,36 Q25,17 33,14 Q40,20 42,34 Z" fill="#F6DCC0"/>
+    <path d="M73,36 Q75,17 67,14 Q60,20 58,34 Z" fill="#F6DCC0"/>
+    <circle cx="50" cy="56" r="34" fill="#EFB169"/>
+    <ellipse cx="50" cy="70" rx="26" ry="20" fill="#FBF1E2"/>
+    <path d="M31,52 Q37,46 43,52" stroke="#4A2E16" stroke-width="3.6" fill="none" stroke-linecap="round"/>
+    <path d="M57,52 Q63,46 69,52" stroke="#4A2E16" stroke-width="3.6" fill="none" stroke-linecap="round"/>
+    <ellipse cx="50" cy="66" rx="6" ry="4.6" fill="#4A2E16"/>
+    <path d="M50,70 Q50,76 44,77 M50,70 Q50,76 56,77" stroke="#4A2E16" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+    <ellipse cx="27" cy="66" rx="6.5" ry="4.5" fill="#F0879E" opacity=".5"/>
+    <ellipse cx="73" cy="66" rx="6.5" ry="4.5" fill="#F0879E" opacity=".5"/>`},
+
+  { name:'Head &amp; chest', svg:`
+    <path d="M50,66 Q24,68 20,94 L80,94 Q76,68 50,66 Z" fill="#F9EEDD" stroke="#3B2412" stroke-width="4.5" stroke-linejoin="round"/>
+    <path d="M28,30 Q18,12 30,8 Q42,10 46,26 Z" fill="#E39A46" stroke="#3B2412" stroke-width="4.5" stroke-linejoin="round"/>
+    <path d="M72,30 Q82,12 70,8 Q58,10 54,26 Z" fill="#E39A46" stroke="#3B2412" stroke-width="4.5" stroke-linejoin="round"/>
+    <ellipse cx="50" cy="48" rx="30" ry="26" fill="#E8A754" stroke="#3B2412" stroke-width="4.5"/>
+    <path d="M24,52 Q26,74 50,74 Q74,74 76,52 Z" fill="#F9EEDD"/>
+    <ellipse cx="50" cy="48" rx="30" ry="26" fill="none" stroke="#3B2412" stroke-width="4.5"/>
+    <ellipse cx="39" cy="45" rx="4.2" ry="5" fill="#241608"/>
+    <ellipse cx="61" cy="45" rx="4.2" ry="5" fill="#241608"/>
+    <ellipse cx="50" cy="58" rx="6.5" ry="5" fill="#241608"/>
+    <path d="M50,63 Q45,68 41,65" stroke="#F28FA3" stroke-width="5" fill="none" stroke-linecap="round"/>`}
+];
+
+var PAWS = [
+  { name:'Current', svg:`
+    <ellipse cx="50" cy="66" rx="27" ry="21" fill="currentColor"/>
+    <ellipse cx="20" cy="36" rx="12" ry="15" fill="currentColor"/>
+    <ellipse cx="42" cy="18" rx="11" ry="14" fill="currentColor"/>
+    <ellipse cx="66" cy="18" rx="11" ry="14" fill="currentColor"/>
+    <ellipse cx="86" cy="38" rx="11" ry="14" fill="currentColor"/>`},
+
+  { name:'Chunky', svg:`
+    <ellipse cx="50" cy="68" rx="30" ry="24" fill="currentColor"/>
+    <ellipse cx="18" cy="38" rx="14" ry="16" fill="currentColor"/>
+    <ellipse cx="41" cy="17" rx="13" ry="15" fill="currentColor"/>
+    <ellipse cx="67" cy="17" rx="13" ry="15" fill="currentColor"/>
+    <ellipse cx="88" cy="40" rx="12" ry="15" fill="currentColor"/>`},
+
+  { name:'Rounded heart pad', svg:`
+    <path d="M50,88 Q22,74 22,58 Q22,44 36,44 Q46,44 50,54 Q54,44 64,44 Q78,44 78,58 Q78,74 50,88 Z" fill="currentColor"/>
+    <ellipse cx="19" cy="32" rx="11" ry="14" fill="currentColor"/>
+    <ellipse cx="41" cy="15" rx="10.5" ry="13" fill="currentColor"/>
+    <ellipse cx="65" cy="15" rx="10.5" ry="13" fill="currentColor"/>
+    <ellipse cx="87" cy="32" rx="11" ry="14" fill="currentColor"/>`},
+
+  { name:'Tilted &amp; natural', svg:`
+    <g transform="rotate(-12 50 55)">
+      <ellipse cx="50" cy="68" rx="26" ry="21" fill="currentColor"/>
+      <ellipse cx="21" cy="40" rx="11.5" ry="14" fill="currentColor"/>
+      <ellipse cx="42" cy="20" rx="11" ry="13.5" fill="currentColor"/>
+      <ellipse cx="65" cy="21" rx="10.5" ry="13" fill="currentColor"/>
+      <ellipse cx="84" cy="42" rx="10" ry="12.5" fill="currentColor"/>
+    </g>`},
+
+  { name:'Minimal circles', svg:`
+    <circle cx="50" cy="68" r="24" fill="currentColor"/>
+    <circle cx="21" cy="40" r="12" fill="currentColor"/>
+    <circle cx="42" cy="19" r="12" fill="currentColor"/>
+    <circle cx="66" cy="19" r="12" fill="currentColor"/>
+    <circle cx="86" cy="42" r="12" fill="currentColor"/>`},
+
+  { name:'Outlined', svg:`
+    <ellipse cx="50" cy="67" rx="25" ry="20" fill="none" stroke="currentColor" stroke-width="8"/>
+    <ellipse cx="20" cy="37" rx="10" ry="13" fill="none" stroke="currentColor" stroke-width="7"/>
+    <ellipse cx="42" cy="18" rx="9.5" ry="12" fill="none" stroke="currentColor" stroke-width="7"/>
+    <ellipse cx="66" cy="18" rx="9.5" ry="12" fill="none" stroke="currentColor" stroke-width="7"/>
+    <ellipse cx="87" cy="38" rx="9.5" ry="12" fill="none" stroke="currentColor" stroke-width="7"/>`}
+];
+
+/* ---------------- sound toolkit ---------------- */
+var actx = null;
+function AC(){
+  if(!actx){ var A = window.AudioContext||window.webkitAudioContext; actx = new A(); }
+  if(actx.state==='suspended') actx.resume();
+  return actx;
+}
+function tone(f,t,dur,type,g,filter){
+  var c=AC(), o=c.createOscillator(), gn=c.createGain(), last=gn;
+  o.type=type||'sine'; o.frequency.setValueAtTime(f,t);
+  gn.gain.setValueAtTime(.0001,t);
+  gn.gain.linearRampToValueAtTime(g,t+.012);
+  gn.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(gn);
+  if(filter){
+    var bq=c.createBiquadFilter(); bq.type=filter.type||'lowpass';
+    bq.frequency.setValueAtTime(filter.f||1200,t); bq.Q.value=filter.q||1;
+    gn.connect(bq); last=bq;
+  }
+  last.connect(c.destination);
+  o.start(t); o.stop(t+dur+.03);
+}
+function sweep(f0,f1,t,dur,type,g){
+  var c=AC(), o=c.createOscillator(), gn=c.createGain();
+  o.type=type||'sine';
+  o.frequency.setValueAtTime(f0,t);
+  o.frequency.exponentialRampToValueAtTime(Math.max(f1,1),t+dur);
+  gn.gain.setValueAtTime(.0001,t);
+  gn.gain.linearRampToValueAtTime(g,t+.012);
+  gn.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(gn).connect(c.destination);
+  o.start(t); o.stop(t+dur+.03);
+}
+function noise(t,dur,f0,f1,g,type,q){
+  var c=AC(), n=Math.max(1,Math.floor(c.sampleRate*dur));
+  var buf=c.createBuffer(1,n,c.sampleRate), d=buf.getChannelData(0);
+  for(var i=0;i<n;i++) d[i]=Math.random()*2-1;
+  var src=c.createBufferSource(); src.buffer=buf;
+  var bq=c.createBiquadFilter(); bq.type=type||'bandpass'; bq.Q.value=q||1;
+  bq.frequency.setValueAtTime(f0,t);
+  bq.frequency.exponentialRampToValueAtTime(Math.max(f1,1),t+dur);
+  var gn=c.createGain();
+  gn.gain.setValueAtTime(.0001,t);
+  gn.gain.linearRampToValueAtTime(g,t+.006);
+  gn.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  src.connect(bq).connect(gn).connect(c.destination);
+  src.start(t); src.stop(t+dur+.03);
+}
+// soft plucked note: two slightly detuned voices through a lowpass
+function pluck(f,t,dur,g){
+  tone(f,t,dur,'triangle',g,{type:'lowpass',f:f*4,q:.8});
+  tone(f*1.005,t,dur*.9,'sine',g*.5);
+}
+function chord(freqs,t,dur,g,type){
+  freqs.forEach(function(f,i){ tone(f,t+i*.005,dur,type||'sine',g); });
+}
+
+var N={C5:523.25,D5:587.33,E5:659.25,F5:698.46,G5:783.99,A5:880,B5:987.77,C6:1046.5,D6:1174.7,E6:1318.5,G6:1568,
+       C4:261.63,E4:329.63,G4:392,A4:440,B3:246.94,E3:164.81,A3:220};
+
+var SOUNDS = {
+  tap: [
+    {name:'Soft blip (current)', desc:'Plain sine tick', play:function(t){ tone(700,t,.05,'sine',.12); }},
+    {name:'Wooden tick',        desc:'Dry, percussive, no pitch', play:function(t){ noise(t,.035,2600,900,.16,'bandpass',1.6); }},
+    {name:'Muted pluck',        desc:'Tiny felt-piano note',      play:function(t){ pluck(N.A5,t,.13,.075); }},
+    {name:'Soft pop',           desc:'Little upward bubble',      play:function(t){ sweep(320,620,t,.05,'sine',.11); }}
+  ],
+  find: [
+    {name:'Rising sweep (current)', desc:'400 up to 900Hz',        play:function(t){ sweep(400,900,t,.15,'sine',.18); }},
+    {name:'Two-note chime',         desc:'Bright G-to-D lift',     play:function(t){ tone(N.G5,t,.14,'triangle',.13); tone(N.D6,t+.085,.22,'triangle',.13); }},
+    {name:'Soft bell',              desc:'Note plus its octave',   play:function(t){ tone(N.C6,t,.45,'sine',.14,{type:'lowpass',f:5000}); tone(N.G6,t,.3,'sine',.05); }},
+    {name:'Warm arpeggio',          desc:'Quick major roll',       play:function(t){ pluck(N.C5,t,.2,.09); pluck(N.E5,t+.055,.2,.09); pluck(N.G5,t+.11,.28,.1); }}
+  ],
+  miss: [
+    {name:'Low thud (current)', desc:'110Hz triangle',            play:function(t){ tone(110,t,.18,'triangle',.2); }},
+    {name:'Soft descend',       desc:'Gentle slide down',         play:function(t){ sweep(420,170,t,.22,'triangle',.14); }},
+    {name:'Muted buzz',         desc:'Filtered saw, short',       play:function(t){ tone(150,t,.16,'sawtooth',.12,{type:'lowpass',f:700,q:2}); }},
+    {name:'Two-tone nope',      desc:'Falling pair of notes',     play:function(t){ pluck(N.E4,t,.16,.11); pluck(N.B3,t+.11,.24,.11); }}
+  ],
+  win: [
+    {name:'Fanfare (current)', desc:'Six-note run up',            play:function(t){
+      [ [N.C5,0],[N.D5,.09],[N.E5,.18],[N.G5,.27],[N.C6,.36] ].forEach(function(p){ tone(p[0],t+p[1],.12,'triangle',.16); });
+      tone(N.E6,t+.5,.4,'triangle',.22);
+    }},
+    {name:'Warm major roll',   desc:'Softer, rounder arpeggio',   play:function(t){
+      [N.C5,N.E5,N.G5,N.C6].forEach(function(f,i){ pluck(f,t+i*.085,.4,.1); });
+      chord([N.C5,N.E5,N.G5,N.C6],t+.38,.9,.045);
+    }},
+    {name:'Bell cascade',      desc:'Chimes tumbling down',       play:function(t){
+      [N.G6,N.E6,N.C6,N.G5].forEach(function(f,i){ tone(f,t+i*.1,.5,'sine',.11,{type:'lowpass',f:6000}); });
+    }},
+    {name:'Chord swell',       desc:'Triad that blooms open',     play:function(t){
+      var c=AC(), g=c.createGain();
+      g.gain.setValueAtTime(.0001,t);
+      g.gain.linearRampToValueAtTime(.13,t+.22);
+      g.gain.exponentialRampToValueAtTime(.0001,t+1.1);
+      g.connect(c.destination);
+      [N.C5,N.E5,N.G5,N.C6].forEach(function(f){
+        var o=c.createOscillator(); o.type='triangle'; o.frequency.value=f;
+        o.connect(g); o.start(t); o.stop(t+1.15);
+      });
+    }}
+  ],
+  start: [
+    {name:'Three-note rise (current)', desc:'C-E-G climb',        play:function(t){
+      tone(N.C5,t,.1,'triangle',.13); tone(N.E5,t+.075,.1,'triangle',.13); tone(N.G5,t+.15,.18,'triangle',.15);
+    }},
+    {name:'Open fifth',   desc:'Two notes, clean and short',      play:function(t){ pluck(N.C5,t,.25,.1); pluck(N.G5,t+.07,.3,.1); }},
+    {name:'Soft bloom',   desc:'Chord fading up',                 play:function(t){ chord([N.C5,N.G5,N.C6],t,.5,.06,'sine'); }},
+    {name:'Whoosh + note',desc:'Air, then a settled note',        play:function(t){ noise(t,.18,500,2400,.07,'bandpass',.8); pluck(N.G5,t+.14,.28,.1); }}
+  ]
+};
+
+/* ---------------- render ---------------- */
+var TILE_COLORS = ['#3ECCA8','#A58EEB','#EBA58E'];
+var picks = { corgi:null, paw:null, tap:null, find:null, miss:null, win:null, start:null };
+
+function svgEl(inner, cls){
+  return '<svg class="'+(cls||'')+'" viewBox="0 0 100 100">'+inner+'</svg>';
+}
+
+function renderArt(gridId, list, key, previewFn){
+  var g = document.getElementById(gridId);
+  g.innerHTML = '';
+  list.forEach(function(item, i){
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = previewFn(item) +
+      '<div class="name"><span class="num">'+(i+1)+'.</span> '+item.name+'</div>';
+    card.addEventListener('click', function(){
+      picks[key] = i+1;
+      Array.prototype.forEach.call(g.children, function(c){ c.classList.remove('sel'); });
+      card.classList.add('sel');
+      updateSummary();
+    });
+    g.appendChild(card);
+  });
+}
+
+renderArt('corgiGrid', CORGIS, 'corgi', function(item){
+  var tiles = TILE_COLORS.map(function(col){
+    return '<div class="tile" style="background:'+col+'"><div class="badge">'+svgEl(item.svg)+'</div></div>';
+  }).join('');
+  return svgEl(item.svg,'big') + '<div class="tiles">'+tiles+'</div>';
+});
+
+renderArt('pawGrid', PAWS, 'paw', function(item){
+  return '<div class="paw-lives">' +
+      '<span class="paw-live">'+svgEl(item.svg)+'</span>' +
+      '<span class="paw-live">'+svgEl(item.svg)+'</span>' +
+      '<span class="paw-spent">'+svgEl(item.svg)+'</span>' +
+    '</div>' +
+    '<div class="tiles" style="margin-top:.45rem">' +
+      '<div class="tile" style="background:#8ED4EB"><div class="badge paw-note">'+svgEl(item.svg)+'</div></div>' +
+      '<div class="tile" style="background:#D4EB8E"><div class="badge paw-note">'+svgEl(item.svg)+'</div></div>' +
+    '</div>';
+});
+
+function renderSounds(listId, key){
+  var host = document.getElementById(listId);
+  host.innerHTML = '';
+  SOUNDS[key].forEach(function(s, i){
+    var row = document.createElement('div');
+    row.className = 'sound';
+    row.innerHTML =
+      '<div class="idx">'+(i+1)+'</div>' +
+      '<div class="meta"><b>'+s.name+'</b><span>'+s.desc+'</span></div>' +
+      '<button class="play" type="button">▶ Play</button>';
+    row.querySelector('.play').addEventListener('click', function(e){
+      e.stopPropagation();
+      s.play(AC().currentTime + .02);
+    });
+    row.addEventListener('click', function(){
+      picks[key] = i+1;
+      Array.prototype.forEach.call(host.children, function(c){ c.classList.remove('sel'); });
+      row.classList.add('sel');
+      s.play(AC().currentTime + .02);
+      updateSummary();
+    });
+    host.appendChild(row);
+  });
+}
+renderSounds('tapList','tap');
+renderSounds('findList','find');
+renderSounds('missList','miss');
+renderSounds('winList','win');
+renderSounds('startList','start');
+
+function updateSummary(){
+  var p = picks;
+  function v(x){ return x ? '<span>'+x+'</span>' : '–'; }
+  document.getElementById('summary').innerHTML =
+    'Corgi ' + v(p.corgi) + ' · Paw ' + v(p.paw) + '<br>' +
+    'Tap ' + v(p.tap) + ' · Correct ' + v(p.find) + ' · Mistake ' + v(p.miss) +
+    ' · Win ' + v(p.win) + ' · Start ' + v(p.start);
+}
+updateSummary();
+</script>
+</body>
+</html>
