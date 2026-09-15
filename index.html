@@ -2765,7 +2765,15 @@
     }
   }
 
-  var CLICK_DELAY = 280;
+  // Every single tap waits this long before the paw actually appears, in
+  // case a second tap is on the way to upgrade it to a corgi - it's the one
+  // real cost of detecting double-taps ourselves instead of trusting the
+  // browser's own (unreliable on fast mobile taps - see below). Trimmed down
+  // from the original 280ms once the paw placement itself got the same pop
+  // animation as everything else, which helps mask what latency remains.
+  // A shorter window also means two accidental taps are less likely to be
+  // mistaken for a deliberate double-tap, so this is safe in that direction.
+  var CLICK_DELAY = 200;
 
   function prefersReducedMotion(){
     return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -2838,6 +2846,11 @@
       board[r][c] = (board[r][c]===1) ? 0 : 1;
     }
     syncCellVisuals();
+    // Same pop the corgi and mistake marks already get - a freshly placed
+    // paw print deserves the same satisfying arrival, not a flat swap-in.
+    // Harmless no-op when this toggle cleared the cell instead: nothing's
+    // there to animate.
+    popPiece(cell);
   }
 
   function applyCorgiToggle(cell, clientX, clientY){
