@@ -62,7 +62,8 @@ ALSO IN THE BOX
 • Lifetime stats: win streak, fastest win, corgis found, flawless wins
 • Eight colour themes, each checked so every pasture is easy to tell apart
 • Plays completely offline
-• Back up your progress and carry it to a new phone
+• Optional sign-in that backs up your progress as you play, and brings it all
+  back on a new phone
 
 PLAY WITH YOUR PACK
 Sign in with Google and your progress backs itself up, so a new phone picks up

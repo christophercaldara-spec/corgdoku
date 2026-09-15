@@ -603,18 +603,7 @@
   .win-card .big-time{ font-size:1.3rem; color:var(--ink); font-variant-numeric:tabular-nums; }
   .win-card > button{ margin-top:1rem; width:100%; }
   .backup-label{ margin-top:1.25rem; }
-  .backup-box{
-    width:100%;
-    border-radius:12px;
-    border:1.5px solid var(--surface-border);
-    background:var(--bg-top);
-    color:var(--ink);
-    font-family:'Nunito', sans-serif;
-    font-size:.72rem;
-    padding:.5rem .6rem;
-    resize:vertical;
-    word-break:break-all;
-  }
+  .sync-line{ margin:-.25rem 0 .5rem; font-size:.7rem; font-weight:700; color:var(--ink-muted); }
   .backup-row{ display:flex; gap:.5rem; margin-top:.5rem; }
   .backup-row button{ flex:1; font-size:.8rem; padding:.5rem .6rem; }
   .backup-status{ margin:.5rem 0 0; font-size:.75rem; font-weight:700; color:var(--ink-muted); min-height:1em; }
@@ -773,13 +762,13 @@
     <p id="pawHint" class="backup-status"></p>
     <p class="section-label backup-label">Account</p>
     <div id="accountBox">
-      <p class="account-blurb" id="accountBlurb">Sign in and your progress backs itself up. Nothing is
-        sent while you're signed out.</p>
+      <p class="account-blurb" id="accountBlurb">Sign in and your progress backs itself up as you play —
+        sign in on any phone and it all comes back. Nothing is sent while you're signed out.</p>
       <button type="button" id="signInBtn">Sign in with Google</button>
       <div id="signedInBox" hidden>
         <p class="account-who">Signed in as <b id="accountName">—</b></p>
+        <p class="sync-line" id="syncLine">Progress saved</p>
         <div class="backup-row">
-          <button type="button" id="syncBtn">Sync now</button>
           <button type="button" id="signOutBtn">Sign out</button>
         </div>
         <p class="section-label backup-label">Your pack</p>
@@ -801,14 +790,6 @@
       </div>
       <p id="accountStatus" class="backup-status"></p>
     </div>
-    <p class="section-label backup-label">Backup &amp; restore</p>
-    <textarea id="backupBox" class="backup-box" rows="3" spellcheck="false"
-      placeholder="Tap Copy progress to get a code. To move to a new phone, paste a code here and tap Restore."></textarea>
-    <div class="backup-row">
-      <button type="button" id="exportBtn">Copy progress</button>
-      <button type="button" id="importBtn">Restore</button>
-    </div>
-    <p id="backupStatus" class="backup-status"></p>
     <button id="closeSettingsBtn" class="primary">Done</button>
   </div>
 </div>
@@ -852,7 +833,6 @@
   var dailyDoneBtn = document.getElementById('dailyDoneBtn');
   var signInBtn = document.getElementById('signInBtn');
   var signOutBtn = document.getElementById('signOutBtn');
-  var syncBtn = document.getElementById('syncBtn');
   var signedInBox = document.getElementById('signedInBox');
   var accountBlurbEl = document.getElementById('accountBlurb');
   var accountNameEl = document.getElementById('accountName');
@@ -865,10 +845,7 @@
   var joinPackBtn = document.getElementById('joinPackBtn');
   var leavePackBtn = document.getElementById('leavePackBtn');
   var refreshPackBtn = document.getElementById('refreshPackBtn');
-  var backupBox = document.getElementById('backupBox');
-  var exportBtn = document.getElementById('exportBtn');
-  var importBtn = document.getElementById('importBtn');
-  var backupStatusEl = document.getElementById('backupStatus');
+  var syncLineEl = document.getElementById('syncLine');
   var corgisTrackerBoxEl = corgisTrackerEl.parentElement;
   var muteBtn = document.getElementById('muteBtn');
   var winOverlay = document.getElementById('winOverlay');
@@ -1002,6 +979,7 @@
   }
   function saveLevelState(){
     try{ localStorage.setItem(LEVEL_KEY, JSON.stringify(levelState)); }catch(e){}
+    queueSync();
   }
 
   var SCHEME_KEY = 'corgdoku_scheme';
@@ -1217,6 +1195,7 @@
     refreshCorgiUses();
     if(persist !== false){
       try{ localStorage.setItem(SKIN_KEY, currentSkinId); }catch(e){}
+      queueSync();
     }
     renderSkinGrid();
   }
@@ -1334,6 +1313,7 @@
     refreshPawUses();
     if(persist !== false){
       try{ localStorage.setItem(PAW_KEY, currentPawId); }catch(e){}
+      queueSync();
     }
     renderPawGrid();
   }
@@ -1566,6 +1546,7 @@
   }
   function saveStats(){
     try{ localStorage.setItem(STATS_KEY, JSON.stringify(lifetimeStats)); }catch(e){}
+    queueSync();
   }
 
   function renderStatsGrid(){
@@ -1834,6 +1815,11 @@
     },
     apply: function(s){
       if(!s) return;
+      applyingRemote = true;
+      try{ this._apply(s); }
+      finally{ applyingRemote = false; }
+    },
+    _apply: function(s){
       if(typeof s.level === 'number' && s.level >= 1){
         loadLevelState().highest = s.level;
         saveLevelState();
@@ -1883,6 +1869,48 @@
 
   function setAccountStatus(msg){ accountStatusEl.textContent = msg || ''; }
 
+  // ---------------------------------------------------------------------
+  // Automatic sync. Hooked into the save functions themselves rather than
+  // called from each place that changes something - that way a new feature
+  // that saves progress gets backed up without anyone remembering to wire it
+  // up, which is exactly the kind of thing that otherwise gets missed.
+  //
+  // Debounced, because finishing a level writes several keys in a row and
+  // that should cost one upload, not five.
+  // ---------------------------------------------------------------------
+  var syncTimer = null;
+  var syncPending = false;
+  // Applying a snapshot from the cloud writes to local storage, which would
+  // queue another sync, which applies again - forever. The write path is
+  // deaf while a remote snapshot is landing.
+  var applyingRemote = false;
+
+  function setSyncLine(msg){ if(syncLineEl) syncLineEl.textContent = msg; }
+
+  function queueSync(){
+    if(applyingRemote) return;
+    if(!window.CorgdokuCloud || !window.CorgdokuCloud.state().signedIn) return;
+    syncPending = true;
+    setSyncLine('Saving…');
+    if(syncTimer) clearTimeout(syncTimer);
+    syncTimer = setTimeout(function(){
+      syncTimer = null;
+      window.CorgdokuCloud.sync().then(function(res){
+        if(res){
+          syncPending = false;
+          setSyncLine('Progress saved');
+        } else {
+          // Still on this phone, just not uploaded yet. The next change or
+          // the next launch retries, and so does coming back online.
+          setSyncLine('Saved on this phone — will back up when you’re online');
+        }
+      });
+    }, 1500);
+  }
+
+  // Coming back online is the one moment a stalled upload can suddenly work.
+  window.addEventListener('online', function(){ if(syncPending) queueSync(); });
+
   function renderAccount(st){
     var signedIn = !!(st && st.signedIn);
     signInBtn.hidden = signedIn;
@@ -1890,6 +1918,7 @@
     accountBlurbEl.hidden = signedIn;
     if(!signedIn) return;
     accountNameEl.textContent = readLocal(NAME_KEY) || st.name || 'Corgi fan';
+    if(!syncPending) setSyncLine('Progress saved');
     var pack = readLocal(PACK_KEY);
     noPackBox.hidden = !!pack;
     inPackBox.hidden = !pack;
@@ -1924,55 +1953,6 @@
     return String(s).replace(/[&<>"']/g, function(c){
       return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
     });
-  }
-
-  function backupKeys(){
-    return [STORAGE_KEY, STATS_KEY, LEVEL_KEY, SCHEME_KEY, MUTE_KEY, DAILY_KEY, SKIN_KEY, PAW_KEY, PACK_KEY, NAME_KEY];
-  }
-  function setBackupStatus(msg){ backupStatusEl.textContent = msg; }
-
-  function exportProgress(){
-    var data = {};
-    backupKeys().forEach(function(k){
-      try{ var v = localStorage.getItem(k); if(v !== null) data[k] = v; }catch(e){}
-    });
-    var code;
-    try{ code = btoa(JSON.stringify({v:1, data:data})); }
-    catch(e){ setBackupStatus("Couldn't build a code on this device."); return; }
-    backupBox.value = code;
-    backupBox.focus();
-    backupBox.select();
-    if(navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(code).then(function(){
-        setBackupStatus('Copied — paste it somewhere safe.');
-      }, function(){
-        setBackupStatus('Select the code above and copy it.');
-      });
-    } else {
-      setBackupStatus('Select the code above and copy it.');
-    }
-  }
-
-  function importProgress(){
-    var code = (backupBox.value || '').trim();
-    if(!code){ setBackupStatus('Paste a backup code above first.'); return; }
-    var parsed = null;
-    try{ parsed = JSON.parse(atob(code)); }catch(e){ parsed = null; }
-    if(!parsed || !parsed.data || typeof parsed.data !== 'object'){
-      setBackupStatus("That code didn't look right.");
-      return;
-    }
-    // Only write keys this game owns, so a bad paste can't scatter junk around.
-    var allowed = {};
-    backupKeys().forEach(function(k){ allowed[k] = true; });
-    var restored = 0;
-    Object.keys(parsed.data).forEach(function(k){
-      if(!allowed[k]) return;
-      try{ localStorage.setItem(k, parsed.data[k]); restored++; }catch(e){}
-    });
-    if(!restored){ setBackupStatus("That code didn't hold any progress."); return; }
-    setBackupStatus('Restored. Reloading…');
-    setTimeout(function(){ location.reload(); }, 700);
   }
 
   // ---------------------------------------------------------------------
@@ -2944,11 +2924,8 @@
     playWinSound();
     buzz([25, 60, 25]);
 
-    // Back up the win in the background. Fire and forget - a failed sync must
-    // never interrupt the celebration, and the next one will catch up anyway.
-    if(window.CorgdokuCloud && window.CorgdokuCloud.state().signedIn){
-      try{ window.CorgdokuCloud.sync(); }catch(e){}
-    }
+    // No explicit sync here: saveStats() and saveLevelState() above already
+    // queued one, and the debounce collapses them into a single upload.
 
     if(!prefersReducedMotion() && typeof confetti === 'function'){
       confetti({
@@ -2976,8 +2953,6 @@
   dailyBtn.addEventListener('click', goToDaily);
   dailyDoneBtn.addEventListener('click', goHome);
   hintBtn.addEventListener('click', showHint);
-  exportBtn.addEventListener('click', exportProgress);
-  importBtn.addEventListener('click', importProgress);
 
   signInBtn.addEventListener('click', function(){
     setAccountStatus('Opening Google sign-in…');
@@ -2997,14 +2972,6 @@
     if(!window.CorgdokuCloud) return;
     window.CorgdokuCloud.signOut().then(function(){
       setAccountStatus('Signed out. Nothing leaves this phone now.');
-    });
-  });
-
-  syncBtn.addEventListener('click', function(){
-    if(!window.CorgdokuCloud) return;
-    setAccountStatus('Syncing…');
-    window.CorgdokuCloud.sync().then(function(res){
-      setAccountStatus(res ? 'Up to date.' : "Couldn't reach the server — try again later.");
     });
   });
 
