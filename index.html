@@ -76,14 +76,15 @@
 
   /* ---------- Hero ---------- */
   .hero{ text-align:center; position:relative; }
-  /* Profile button: the corgi you actually have equipped, framed, standing in
-     for the usual avatar. Settings moved inside it. */
-  .profile-fab{
-    position:absolute; top:-2px; right:0;
+  /* The header's two corners: your corgi on the left as a profile avatar,
+     a plain cog on the right. Both circles the same size so the title sits
+     evenly between them, but the cog is deliberately quieter - muted border,
+     no accent ring - so the avatar stays the one that draws the eye. */
+  .profile-fab, .settings-fab{
+    position:absolute; top:-2px;
     width:52px; height:52px;
     padding:0;
     border-radius:50%;
-    border:3px solid var(--accent);
     background:var(--surface);
     box-shadow:var(--elevation-1);
     cursor:pointer;
@@ -91,7 +92,9 @@
     overflow:hidden;
     transition:transform .12s ease;
   }
-  .profile-fab:hover{ transform:translateY(-2px); }
+  .profile-fab{ left:0; border:3px solid var(--accent); }
+  .settings-fab{ right:0; border:2px solid var(--surface-border); font-size:1.25rem; }
+  .profile-fab:hover, .settings-fab:hover{ transform:translateY(-2px); }
   .profile-corgi{ width:88%; height:88%; object-fit:contain; display:block; }
   .hero h1{
     font-family:var(--font-display);
@@ -105,6 +108,17 @@
     padding-top:.05em;
   }
   .hero h1 .dot{ color:var(--accent); }
+  /* Must sit AFTER the .hero h1 rule above: same specificity, so the later
+     one wins and an earlier media query is simply ignored. */
+  /* The title's font floor doesn't scale below 2.4rem, but the space between
+     the two corner buttons keeps shrinking - on a 320px-wide phone the
+     wordmark ran 8px into both of them. Give back room from both sides at
+     narrow widths rather than shrinking the title everywhere. */
+  @media (max-width: 360px){
+    .profile-fab, .settings-fab{ width:42px; height:42px; }
+    .settings-fab{ font-size:1.05rem; }
+    .hero h1{ font-size:clamp(1.7rem, 7.6vw, 3.4rem); }
+  }
   /* The two o's in the wordmark, cycling through the whole pack. Sized a
      touch over the cap height so the ears read, and nudged down so the face
      sits on the baseline where the letter o would. */
@@ -707,7 +721,6 @@
     border:2px solid var(--surface-border); border-radius:12px;
     padding:.5rem .6rem;
   }
-  .settings-link{ margin-top:1.1rem; }
   .backup-row{ display:flex; gap:.5rem; margin-top:.5rem; }
   .backup-row button{ flex:1; font-size:.8rem; padding:.5rem .6rem; }
   .backup-status{ margin:.5rem 0 0; font-size:.75rem; font-weight:700; color:var(--ink-muted); min-height:1em; }
@@ -753,6 +766,7 @@
         <button id="profileBtn" class="profile-fab" title="Profile">
           <img id="profileCorgi" class="profile-corgi" alt="Profile">
         </button>
+        <button id="settingsFab" class="settings-fab" title="Settings" aria-label="Settings">⚙️</button>
         <!-- The two o's are corgi faces that cycle through the whole pack.
              alt="o" keeps the heading reading as "Corgdoku" to a screen
              reader rather than "C rgd ku". -->
@@ -902,7 +916,6 @@
       </div>
       <p id="accountStatus" class="backup-status"></p>
     </div>
-    <button type="button" id="openSettingsBtn" class="link-btn settings-link">⚙️ Settings</button>
     <button id="closeProfileBtn" class="primary">Done</button>
   </div>
 </div>
@@ -994,7 +1007,7 @@
   var profileBtn = document.getElementById('profileBtn');
   var profileOverlay = document.getElementById('profileOverlay');
   var closeProfileBtn = document.getElementById('closeProfileBtn');
-  var openSettingsBtn = document.getElementById('openSettingsBtn');
+  var settingsFab = document.getElementById('settingsFab');
   var settingsOverlay = document.getElementById('settingsOverlay');
   var closeSettingsBtn = document.getElementById('closeSettingsBtn');
   var soundToggleBtn = document.getElementById('soundToggleBtn');
@@ -2348,17 +2361,11 @@
 
   window.addEventListener('popstate', function(e){
     var s = (e.state && e.state.s) || 'home';
-    // Settings sits on top of profile, so backing out of it drops to profile
-    // rather than all the way home - the sheet you came from is still open
-    // underneath.
-    if(s === 'settings'){
-      profileOverlay.hidden = false;
-      settingsOverlay.hidden = false;
-      return;
-    }
-    settingsOverlay.hidden = true;
-    if(s === 'profile'){ profileOverlay.hidden = false; return; }
-    profileOverlay.hidden = true;
+    // Profile and Settings are siblings, not nested - each opens from the
+    // home screen and backs straight out to it.
+    settingsOverlay.hidden = (s !== 'settings');
+    profileOverlay.hidden = (s !== 'profile');
+    if(s === 'settings' || s === 'profile') return;
     if(s === 'game'){
       homeScreen.hidden = true;
       gameScreen.hidden = false;
@@ -3502,7 +3509,7 @@
     else profileOverlay.hidden = true;
   });
 
-  openSettingsBtn.addEventListener('click', function(){
+  settingsFab.addEventListener('click', function(){
     renderSettingsSheet();
     settingsOverlay.hidden = false;
     pushScreen('settings');
