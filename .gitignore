@@ -1,3 +1,8 @@
 # Generated Android package + signing key - never commit these to a public repo.
 android-build/
 corgdoku-android.zip
+
+# Source sheets + one-off extraction scripts for the corgi/paw art (art/ below
+# is the actual shipped output - these are just how it was produced, multiple
+# MB of raw sheets that don't need to ride along in every clone).
+art-source/

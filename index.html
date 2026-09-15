@@ -1099,93 +1099,38 @@
   }
 
   // ---------------------------------------------------------------------
-  // Corgi skins. The head and ears are drawn as one continuous silhouette
-  // rather than a circle with two triangles stuck on, which is what makes it
-  // read as a corgi instead of a generic dog icon. Everything that would
-  // otherwise spill past that outline is clipped to it, and the outline is
-  // stroked last so nothing can paint over the edge.
+  // Corgi skins. Real artwork now (art/corgis/<id>.png) - flat vector faces
+  // with the head and ears drawn as one continuous silhouette rather than a
+  // circle with two triangles stuck on, which is what makes it read as a
+  // corgi instead of a generic dog icon. Replaced the earlier code-drawn
+  // placeholders once real art was sourced; every corgi on screen still
+  // comes from the one #icon-corgi symbol, so this is the only place that
+  // needed to change.
   //
-  // These are placeholders drawn in code - good enough to build the unlock
-  // system against, and easy to swap for real artwork later since every corgi
-  // on screen comes from the one #icon-corgi symbol.
+  // An <image> inside an SVG <symbol> works exactly like the old inline
+  // paths did with <use> - same viewBox, same refresh trick below - so
+  // nothing downstream (settings grid, tracker, win screen, board cells,
+  // pack list, unlock banner) needed to change at all.
   // ---------------------------------------------------------------------
-  var CORGI_SIL = "M13,12 Q11,34 22,48 Q18,72 32,84 Q50,95 68,84 Q82,72 78,48 Q89,34 87,12 Q72,18 66,38 Q50,44 34,38 Q28,18 13,12 Z";
-
   function corgiArt(s){
-    var cream = s.cream || '#FBF1E0';
-    var inner = s.inner || '#F2D9B8';
-    var line = s.line || '#3B2412';
-    var eye = s.eye || '#2A1A0C';
-    var pink = s.pink || '#F0879E';
-    var uid = 'cs-' + s.id;
-    var o = [];
-
-    o.push('<clipPath id="'+uid+'"><path d="'+CORGI_SIL+'"/></clipPath>');
-    o.push('<path d="'+CORGI_SIL+'" fill="'+s.coat+'"/>');
-    o.push('<g clip-path="url(#'+uid+')">');
-    if(s.patch){
-      o.push('<path d="M30,34 Q50,32 54,52 Q46,72 28,66 Q20,48 30,34 Z" fill="'+s.patch+'"/>');
-    }
-    o.push('<path d="M50,33 Q44,49 41,61 Q30,63 27,76 Q34,91 50,93 Q66,91 73,76 Q70,63 59,61 Q56,49 50,33 Z" fill="'+cream+'"/>');
-    if(s.brow){
-      o.push('<ellipse cx="35" cy="46" rx="6" ry="4" fill="'+s.brow+'"/>');
-      o.push('<ellipse cx="65" cy="46" rx="6" ry="4" fill="'+s.brow+'"/>');
-    }
-    o.push('<path d="M18,19 Q18,35 24,46 Q31,34 30,23 Z" fill="'+inner+'"/>');
-    o.push('<path d="M82,19 Q82,35 76,46 Q69,34 70,23 Z" fill="'+inner+'"/>');
-    o.push('<ellipse cx="27" cy="66" rx="7" ry="4.5" fill="'+pink+'" opacity=".4"/>');
-    o.push('<ellipse cx="73" cy="66" rx="7" ry="4.5" fill="'+pink+'" opacity=".4"/>');
-    o.push('</g>');
-
-    if(s.eyes === 'closed'){
-      o.push('<path d="M30,58 Q36,51 42,58" stroke="'+eye+'" stroke-width="4" fill="none" stroke-linecap="round"/>');
-      o.push('<path d="M58,58 Q64,51 70,58" stroke="'+eye+'" stroke-width="4" fill="none" stroke-linecap="round"/>');
-    } else if(s.eyes === 'sleepy'){
-      o.push('<path d="M30,56 Q36,62 42,56" stroke="'+eye+'" stroke-width="4" fill="none" stroke-linecap="round"/>');
-      o.push('<path d="M58,56 Q64,62 70,56" stroke="'+eye+'" stroke-width="4" fill="none" stroke-linecap="round"/>');
-    } else if(s.eyes === 'wink'){
-      o.push('<ellipse cx="36" cy="56" rx="4.6" ry="5.6" fill="'+eye+'"/>');
-      o.push('<circle cx="37.6" cy="53.8" r="1.5" fill="#fff"/>');
-      o.push('<path d="M58,58 Q64,51 70,58" stroke="'+eye+'" stroke-width="4" fill="none" stroke-linecap="round"/>');
-    } else {
-      o.push('<ellipse cx="36" cy="56" rx="4.6" ry="5.6" fill="'+eye+'"/>');
-      o.push('<ellipse cx="64" cy="56" rx="4.6" ry="5.6" fill="'+eye+'"/>');
-      o.push('<circle cx="37.6" cy="53.8" r="1.5" fill="#fff"/>');
-      o.push('<circle cx="65.6" cy="53.8" r="1.5" fill="#fff"/>');
-    }
-    if(s.shades){
-      o.push('<path d="M24,52 H76 V58 Q76,68 64,68 Q54,68 52,58 Q50,54 48,58 Q46,68 36,68 Q24,68 24,58 Z" fill="#20242B"/>');
-      o.push('<path d="M28,55 Q33,54 38,56" stroke="#fff" stroke-width="2" fill="none" opacity=".55" stroke-linecap="round"/>');
-    }
-    o.push('<path d="M43,68 Q50,63 57,68 Q57,75 50,78 Q43,75 43,68 Z" fill="'+eye+'"/>');
-    if(s.tongue){
-      o.push('<path d="M46,80 Q46,92 53,90 Q57,87 55,79 Z" fill="'+pink+'"/>');
-    }
-    o.push('<path d="M50,78 Q45,84 39,80" stroke="'+eye+'" stroke-width="3.4" fill="none" stroke-linecap="round"/>');
-    o.push('<path d="M50,78 Q55,84 61,80" stroke="'+eye+'" stroke-width="3.4" fill="none" stroke-linecap="round"/>');
-    if(s.hat){
-      o.push('<path d="M50,2 L63,36 H37 Z" fill="'+s.hat+'" stroke="'+line+'" stroke-width="4" stroke-linejoin="round"/>');
-      o.push('<circle cx="50" cy="3" r="5" fill="#FFD166" stroke="'+line+'" stroke-width="3.5"/>');
-    }
-    o.push('<path d="'+CORGI_SIL+'" fill="none" stroke="'+line+'" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>');
-    return o.join('');
+    return '<image href="art/corgis/' + s.id + '.png" width="100" height="100"/>';
   }
 
   // Unlocks are pegged to the level counter, which is the one number that only
   // ever goes up - so the climb hands out something to show for it.
   var CORGI_SKINS = [
-    {id:'classic', name:'Classic',     level:1,   coat:'#E8A14A'},
-    {id:'happy',   name:'Happy',       level:2,   coat:'#E8A14A', tongue:true},
-    {id:'wink',    name:'Winker',      level:4,   coat:'#E8A14A', eyes:'wink', tongue:true},
-    {id:'sleepy',  name:'Sleepy',      level:7,   coat:'#DE9A55', eyes:'sleepy'},
-    {id:'blep',    name:'Blep',        level:10,  coat:'#E8A14A', eyes:'closed', tongue:true},
-    {id:'cream',   name:'Cream Puff',  level:14,  coat:'#EFD3A0', cream:'#FFF8EC', inner:'#E6BE93'},
-    {id:'fox',     name:'Red Fox',     level:20,  coat:'#C9662C', inner:'#E9A26B', tongue:true},
-    {id:'sable',   name:'Sable',       level:30,  coat:'#8A5A32', inner:'#C08B5C', cream:'#F6E9D4'},
-    {id:'tri',     name:'Tri-Color',   level:40,  coat:'#3B332F', inner:'#9A7350', cream:'#F6E9D4', brow:'#C88B4E', eye:'#171210'},
-    {id:'patch',   name:'Patch',       level:55,  coat:'#EFD3A0', cream:'#FFF8EC', inner:'#E6BE93', patch:'#C9662C'},
-    {id:'shades',  name:'Cool Shades', level:75,  coat:'#E8A14A', shades:true, tongue:true},
-    {id:'party',   name:'Party Pup',   level:100, coat:'#E8A14A', hat:'#F0879E', tongue:true}
+    {id:'classic', name:'Classic',     level:1},
+    {id:'happy',   name:'Happy',       level:2},
+    {id:'wink',    name:'Winker',      level:4},
+    {id:'sleepy',  name:'Sleepy',      level:7},
+    {id:'blep',    name:'Blep',        level:10},
+    {id:'cream',   name:'Cream Puff',  level:14},
+    {id:'fox',     name:'Red Fox',     level:20},
+    {id:'sable',   name:'Sable',       level:30},
+    {id:'tri',     name:'Tri-Color',   level:40},
+    {id:'patch',   name:'Patch',       level:55},
+    {id:'shades',  name:'Cool Shades', level:75},
+    {id:'party',   name:'Party Pup',   level:100}
   ];
 
   var SKIN_KEY = 'corgdoku_corgi_v1';
@@ -1251,66 +1196,42 @@
   }
 
   // ---------------------------------------------------------------------
-  // Paw markers. These vary by shape rather than colour, because the one
-  // #icon-paw symbol is both the note a player leaves on a square and the
-  // lives row - which recolours it to accent, grey and red. Anything with a
-  // baked-in fill would break the lives row, so it's all currentColor.
+  // Paw markers. Real artwork now (art/paws/<id>.png) - but the one #icon-paw
+  // symbol is both the note a player leaves on a square AND the lives row,
+  // which recolours it to accent, grey and red - so a plain <image> won't do,
+  // it has no colour of its own to change.
+  //
+  // Each source PNG is a solid black shape on a transparent background (the
+  // art brief asked for exactly that). Used as an SVG alpha mask, its shape
+  // punches a hole in a currentColor rect - so it inherits whatever colour
+  // the context asks for, the same as the old hand-drawn currentColor paths
+  // did. mask-type="alpha" is what makes it key off transparency rather than
+  // the mask content's own (here, black) colour.
+  //
+  // The mask id is unique per call, not per paw: the settings grid renders
+  // all ten at once, each a separate call, and a shared id would make every
+  // <rect> resolve to whichever mask happened to be first in the document.
   // ---------------------------------------------------------------------
   var PAW_MARKERS = [
-    {id:'chunky', name:'Chunky', level:1, art:
-      '<ellipse cx="50" cy="68" rx="30" ry="24"/><ellipse cx="18" cy="38" rx="14" ry="16"/>' +
-      '<ellipse cx="41" cy="17" rx="13" ry="15"/><ellipse cx="67" cy="17" rx="13" ry="15"/>' +
-      '<ellipse cx="88" cy="40" rx="12" ry="15"/>'},
-    {id:'classic', name:'Classic', level:3, art:
-      '<ellipse cx="50" cy="70" rx="25" ry="21"/>' +
-      '<ellipse cx="19" cy="45" rx="11" ry="13" transform="rotate(-20 19 45)"/>' +
-      '<ellipse cx="37" cy="22" rx="11" ry="13" transform="rotate(-8 37 22)"/>' +
-      '<ellipse cx="63" cy="22" rx="11" ry="13" transform="rotate(8 63 22)"/>' +
-      '<ellipse cx="81" cy="45" rx="11" ry="13" transform="rotate(20 81 45)"/>'},
-    {id:'wide', name:'Wide', level:5, art:
-      '<ellipse cx="50" cy="71" rx="34" ry="20"/><ellipse cx="14" cy="43" rx="13" ry="12"/>' +
-      '<ellipse cx="36" cy="24" rx="13" ry="12"/><ellipse cx="64" cy="24" rx="13" ry="12"/>' +
-      '<ellipse cx="86" cy="43" rx="13" ry="12"/>'},
-    {id:'dainty', name:'Dainty', level:8, art:
-      '<ellipse cx="50" cy="72" rx="20" ry="18"/>' +
-      '<ellipse cx="23" cy="50" rx="8.5" ry="11.5" transform="rotate(-25 23 50)"/>' +
-      '<ellipse cx="39" cy="28" rx="8.5" ry="11.5" transform="rotate(-10 39 28)"/>' +
-      '<ellipse cx="61" cy="28" rx="8.5" ry="11.5" transform="rotate(10 61 28)"/>' +
-      '<ellipse cx="77" cy="50" rx="8.5" ry="11.5" transform="rotate(25 77 50)"/>'},
-    {id:'puppy', name:'Puppy', level:12, art:
-      '<g transform="translate(50 52) scale(.66) translate(-50 -50)">' +
-      '<ellipse cx="50" cy="70" rx="25" ry="21"/><ellipse cx="19" cy="45" rx="12" ry="14"/>' +
-      '<ellipse cx="37" cy="21" rx="12" ry="14"/><ellipse cx="63" cy="21" rx="12" ry="14"/>' +
-      '<ellipse cx="81" cy="45" rx="12" ry="14"/></g>'},
-    {id:'muddy', name:'Muddy', level:17, art:
-      '<ellipse cx="50" cy="66" rx="28" ry="22"/><ellipse cx="19" cy="38" rx="13" ry="15"/>' +
-      '<ellipse cx="41" cy="17" rx="12" ry="14"/><ellipse cx="66" cy="17" rx="12" ry="14"/>' +
-      '<ellipse cx="86" cy="39" rx="11" ry="14"/>' +
-      '<circle cx="12" cy="76" r="5"/><circle cx="87" cy="72" r="4"/><circle cx="52" cy="95" r="3.5"/>'},
-    {id:'heart', name:'Heart', level:24, art:
-      '<path d="M50,92 C25,77 20,59 31,51 C40,45 47,52 50,58 C53,52 60,45 69,51 C80,59 75,77 50,92 Z"/>' +
-      '<ellipse cx="17" cy="40" rx="11" ry="13"/><ellipse cx="38" cy="19" rx="11" ry="13"/>' +
-      '<ellipse cx="62" cy="19" rx="11" ry="13"/><ellipse cx="83" cy="40" rx="11" ry="13"/>'},
-    {id:'bone', name:'Bone', level:33, art:
-      '<rect x="24" y="41" width="52" height="18" rx="9"/>' +
-      '<circle cx="26" cy="36" r="14"/><circle cx="26" cy="64" r="14"/>' +
-      '<circle cx="74" cy="36" r="14"/><circle cx="74" cy="64" r="14"/>'},
-    {id:'ball', name:'Tennis Ball', level:45, art:
-      '<circle cx="50" cy="50" r="31" fill="none" stroke="currentColor" stroke-width="10"/>' +
-      '<path d="M25,28 Q45,50 25,72" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round"/>' +
-      '<path d="M75,28 Q55,50 75,72" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round"/>'},
-    {id:'outline', name:'Outline', level:60, art:
-      '<ellipse cx="50" cy="69" rx="25" ry="20" fill="none" stroke="currentColor" stroke-width="9"/>' +
-      '<ellipse cx="18" cy="43" rx="10" ry="12" fill="none" stroke="currentColor" stroke-width="8"/>' +
-      '<ellipse cx="37" cy="21" rx="10" ry="12" fill="none" stroke="currentColor" stroke-width="8"/>' +
-      '<ellipse cx="63" cy="21" rx="10" ry="12" fill="none" stroke="currentColor" stroke-width="8"/>' +
-      '<ellipse cx="82" cy="43" rx="10" ry="12" fill="none" stroke="currentColor" stroke-width="8"/>'}
+    {id:'chunky',    name:'Chunky',    level:1},
+    {id:'slim',      name:'Slim',      level:3},
+    {id:'heart',     name:'Heart',     level:5},
+    {id:'tilted',    name:'Tilted',    level:8},
+    {id:'walking',   name:'Walking',   level:12},
+    {id:'scratched', name:'Scratched', level:17},
+    {id:'dainty',    name:'Dainty',    level:24},
+    {id:'singlepad', name:'Single Pad',level:33},
+    {id:'outline',   name:'Outline',   level:45},
+    {id:'trail',     name:'Trail',     level:60}
   ];
 
-  // Filled shapes don't carry a fill of their own, so they inherit whatever
-  // colour the context asks for.
+  var pawMaskSeq = 0;
   function pawArt(p){
-    return '<g fill="currentColor">' + p.art + '</g>';
+    var uid = 'pawmask-' + p.id + '-' + (pawMaskSeq++);
+    return '<mask id="' + uid + '" mask-type="alpha">' +
+             '<image href="art/paws/' + p.id + '.png" width="100" height="100"/>' +
+           '</mask>' +
+           '<rect width="100" height="100" fill="currentColor" mask="url(#' + uid + ')"/>';
   }
 
   var PAW_KEY = 'corgdoku_paw_v1';

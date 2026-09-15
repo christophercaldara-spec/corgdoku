@@ -1,6 +1,8 @@
 // Bump this on every deploy - old caches are dropped on activate, and it's
 // what forces a stale service worker to notice there's an update at all.
-var CACHE_NAME = 'corgdoku-v18';
+var CACHE_NAME = 'corgdoku-v19';
+var CORGI_IDS = ['classic','happy','wink','sleepy','blep','cream','fox','sable','tri','patch','shades','party'];
+var PAW_IDS = ['chunky','slim','heart','tilted','walking','scratched','dainty','singlepad','outline','trail'];
 var ASSETS = [
   './',
   './index.html',
@@ -12,7 +14,9 @@ var ASSETS = [
   './vendor/fonts/nunito.woff2',
   './vendor/fonts/quicksand.woff2',
   './vendor/confetti.browser.min.js'
-];
+]
+  .concat(CORGI_IDS.map(function(id){ return './art/corgis/' + id + '.png'; }))
+  .concat(PAW_IDS.map(function(id){ return './art/paws/' + id + '.png'; }));
 
 self.addEventListener('install', function(event){
   event.waitUntil(
