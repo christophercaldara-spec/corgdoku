@@ -64,9 +64,15 @@ ALSO IN THE BOX
 • Plays completely offline
 • Back up your progress and carry it to a new phone
 
+PLAY WITH YOUR PACK
+Sign in with Google and your progress backs itself up, so a new phone picks up
+exactly where the old one left off. Make a pack, share the code, and see how
+everyone's climb is going.
+
 NO NONSENSE
-No ads. No accounts. No sign-up. No tracking or analytics of any kind. Nothing
-you do leaves your phone. It's a puzzle game, and that's all it is.
+No ads. No tracking or analytics of any kind. Signing in is entirely optional
+and the whole game works without it — signed out, nothing you do leaves your
+phone. It's a puzzle game, and that's all it is.
 ```
 
 ---
@@ -101,20 +107,34 @@ Play wants a 512x512 PNG: use `icon-512.png` from the project root.
 
 ## Content rating questionnaire
 
-It's a puzzle game with no violence, no in-app purchases, no ads, no user
-content and no data collection, so this should come out as suitable for
-everyone. Answer honestly and it'll sort itself out.
+A puzzle game with no violence, no in-app purchases and no ads, so it should
+come out suitable for everyone.
+
+**Two answers changed when accounts landed** — answer these honestly:
+- Does the app let users interact or share content? **Yes** — pack members see
+  each other's display name, level and stats.
+- Is there user-generated content? **Effectively yes** — the display name comes
+  from the user's Google account and is visible to their pack.
 
 ## Data safety form
 
-- Does your app collect or share any of the required user data types? **No.**
-- Is all user data encrypted in transit? Not applicable — no data is transmitted.
-- Do you provide a way for users to request deletion? Not applicable — data
-  never leaves the device, and uninstalling removes it.
+Accurate as of the accounts release. Sign-in is optional, but Play asks what
+the app *can* collect, not what it always collects.
 
-This is accurate as of the self-hosting change: the app makes no third-party
-requests at all. Fonts and the confetti animation are served from the app's own
-files, so nothing about the player reaches anyone.
+- Does your app collect or share any of the required user data types? **Yes.**
+- What's collected, only when the user signs in:
+  - **Personal info → Name** (the Google account display name)
+  - **Personal info → User IDs** (the Firebase account identifier)
+  - **App activity → In-app actions** (level reached, stats, chosen corgi/paw)
+- Is any of it shared with third parties? **No** — it's stored in the
+  developer's own Firebase project, not sold or handed on. Pack members seeing
+  each other is in-app visibility, not sharing.
+- Is collection optional? **Yes** — the game is fully playable signed out, and
+  signed out it transmits nothing.
+- Is all user data encrypted in transit? **Yes** — Firebase is HTTPS only.
+- Do you provide a way for users to request deletion? **Yes** — by emailing the
+  address in the privacy policy. *(Worth building a self-serve delete button
+  before submitting; Play prefers in-app deletion.)*
 
 ## Privacy policy URL
 
