@@ -226,6 +226,44 @@
       return M.fs.setDoc(userDoc(), {pack:null}, {merge:true});
     },
 
+    // Erases everything held about this player and closes the account. Order
+    // matters: the account goes LAST, because once it's gone there's no auth
+    // left to delete the data with - and data left behind with no way to reach
+    // it is the one outcome worse than failing outright.
+    //
+    // Progress on this phone is deliberately untouched. "Delete my data" means
+    // the copy we hold, not the game they're in the middle of.
+    deleteEverything: function(){
+      if(!user) return Promise.reject(new Error('not signed in'));
+      var uid = user.uid;
+      return M.fs.getDoc(userDoc()).then(function(snap){
+        var pack = snap.exists() ? snap.data().pack : null;
+        if(!pack) return null;
+        var patch = {};
+        patch['members.' + uid] = M.fs.deleteField();
+        return M.fs.updateDoc(packDoc(pack), patch).catch(function(){});
+      }).then(function(){
+        return M.fs.deleteDoc(userDoc());
+      }).then(function(){
+        return M.auth.deleteUser(user).catch(function(err){
+          // Google refuses to close an account on a stale session. The data is
+          // already gone by this point; re-authenticating just finishes the job.
+          if(err && err.code === 'auth/requires-recent-login'){
+            var provider = new M.auth.GoogleAuthProvider();
+            return M.auth.reauthenticateWithPopup(user, provider).then(function(){
+              return M.auth.deleteUser(user);
+            });
+          }
+          throw err;
+        });
+      }).then(function(){
+        try{ localStorage.removeItem('corgdoku_signedin'); }catch(e){}
+        user = null;
+        notify();
+        return true;
+      });
+    },
+
     // Whole pack in one read. Sorted by level, the thing people came to see.
     readPack: function(code){
       if(!code) return Promise.resolve(null);

@@ -133,9 +133,10 @@ the app *can* collect, not what it always collects.
 - Is collection optional? **Yes** — the game is fully playable signed out, and
   signed out it transmits nothing.
 - Is all user data encrypted in transit? **Yes** — Firebase is HTTPS only.
-- Do you provide a way for users to request deletion? **Yes** — by emailing the
-  address in the privacy policy. *(Worth building a self-serve delete button
-  before submitting; Play prefers in-app deletion.)*
+- Do you provide a way for users to request deletion? **Yes** — in-app, at
+  Settings → Account → Delete my data, which erases the stored progress, removes
+  them from any pack and closes the account. Email deletion is offered as a
+  fallback in the privacy policy.
 
 ## Privacy policy URL
 

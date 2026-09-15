@@ -604,6 +604,15 @@
   .win-card > button{ margin-top:1rem; width:100%; }
   .backup-label{ margin-top:1.25rem; }
   .sync-line{ margin:-.25rem 0 .5rem; font-size:.7rem; font-weight:700; color:var(--ink-muted); }
+  .danger-box{
+    border:2px solid var(--error);
+    border-radius:12px;
+    padding:.6rem .7rem;
+    margin-top:.6rem;
+  }
+  .danger-box p{ margin:0 0 .4rem; font-size:.74rem; font-weight:700; line-height:1.4; }
+  .danger-note{ color:var(--ink-muted); }
+  button.danger{ background:var(--error); color:#fff; }
   .backup-row{ display:flex; gap:.5rem; margin-top:.5rem; }
   .backup-row button{ flex:1; font-size:.8rem; padding:.5rem .6rem; }
   .backup-status{ margin:.5rem 0 0; font-size:.75rem; font-weight:700; color:var(--ink-muted); min-height:1em; }
@@ -770,6 +779,17 @@
         <p class="sync-line" id="syncLine">Progress saved</p>
         <div class="backup-row">
           <button type="button" id="signOutBtn">Sign out</button>
+          <button type="button" id="deleteDataBtn">Delete my data</button>
+        </div>
+        <div id="deleteConfirmBox" class="danger-box" hidden>
+          <p>This permanently erases the backup of your progress and closes your
+            account. It can't be undone.</p>
+          <p class="danger-note">Your progress on this phone is kept — you just
+            won't be backed up any more.</p>
+          <div class="backup-row">
+            <button type="button" id="cancelDeleteBtn">Cancel</button>
+            <button type="button" id="confirmDeleteBtn" class="danger">Delete it</button>
+          </div>
         </div>
         <p class="section-label backup-label">Your pack</p>
         <div id="noPackBox">
@@ -833,6 +853,10 @@
   var dailyDoneBtn = document.getElementById('dailyDoneBtn');
   var signInBtn = document.getElementById('signInBtn');
   var signOutBtn = document.getElementById('signOutBtn');
+  var deleteDataBtn = document.getElementById('deleteDataBtn');
+  var deleteConfirmBox = document.getElementById('deleteConfirmBox');
+  var cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+  var confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
   var signedInBox = document.getElementById('signedInBox');
   var accountBlurbEl = document.getElementById('accountBlurb');
   var accountNameEl = document.getElementById('accountName');
@@ -1919,6 +1943,7 @@
     if(!signedIn) return;
     accountNameEl.textContent = readLocal(NAME_KEY) || st.name || 'Corgi fan';
     if(!syncPending) setSyncLine('Progress saved');
+    deleteConfirmBox.hidden = true;
     var pack = readLocal(PACK_KEY);
     noPackBox.hidden = !!pack;
     inPackBox.hidden = !pack;
@@ -2966,6 +2991,32 @@
         ? 'Sign-in cancelled.'
         : "Couldn't sign in. Your progress is safe on this phone either way.");
     });
+  });
+
+  // Two taps, not one, and the second one is the red one. Irreversible things
+  // shouldn't sit one stray tap away from the Sign out button.
+  deleteDataBtn.addEventListener('click', function(){
+    deleteConfirmBox.hidden = false;
+    setAccountStatus('');
+  });
+  cancelDeleteBtn.addEventListener('click', function(){ deleteConfirmBox.hidden = true; });
+
+  confirmDeleteBtn.addEventListener('click', function(){
+    if(!window.CorgdokuCloud) return;
+    confirmDeleteBtn.disabled = true;
+    setAccountStatus('Deleting…');
+    window.CorgdokuCloud.deleteEverything().then(function(){
+      deleteConfirmBox.hidden = true;
+      writeLocal(PACK_KEY, null);
+      writeLocal(NAME_KEY, null);
+      renderAccount(window.CorgdokuCloud.state());
+      setAccountStatus('Deleted. Your progress on this phone is untouched.');
+    }, function(err){
+      var code = err && err.code ? err.code : '';
+      setAccountStatus(code.indexOf('popup') >= 0
+        ? 'Google needs you to confirm it’s you — try again.'
+        : "Couldn't finish deleting. Nothing was half-removed; try again.");
+    }).then(function(){ confirmDeleteBtn.disabled = false; });
   });
 
   signOutBtn.addEventListener('click', function(){
