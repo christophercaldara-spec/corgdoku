@@ -111,6 +111,13 @@
     font-size:.95rem;
     letter-spacing:.2px;
   }
+  .mini-stat-line{
+    margin:.25rem 0 0;
+    color:var(--ink-muted);
+    font-weight:700;
+    font-size:.72rem;
+  }
+  .mini-stat-line b{ color:var(--accent); }
 
   /* ---------- Home screen ---------- */
   #homeScreen{ display:flex; flex-direction:column; gap:1rem; }
@@ -632,6 +639,7 @@
   }
   .win-card h2.fail-heading{ color:var(--error); }
   .win-card p{ margin:.25rem 0; color:var(--ink-muted); font-weight:700; }
+  .win-caption{ margin:-.15rem 0 .4rem !important; font-style:italic; }
   .win-card .big-time{ font-size:1.3rem; color:var(--ink); font-variant-numeric:tabular-nums; }
   .win-card > button{ margin-top:1rem; width:100%; }
   .backup-label{ margin-top:1.25rem; }
@@ -694,6 +702,8 @@
         </div>
         <svg class="leash" viewBox="0 0 260 14"><path d="M2,7 Q32,-2 62,7 T122,7 T182,7 T242,7"/></svg>
         <p class="tagline">One good boy per yard. No shared paths. No nose-to-nose.</p>
+        <p class="mini-stat-line" id="collectionLine"></p>
+        <p class="mini-stat-line" id="packLine" hidden></p>
       </header>
 
       <div class="home-block">
@@ -765,6 +775,7 @@
 <div id="winOverlay" class="win-overlay" hidden>
   <div class="win-card">
     <h2>Good Herding! 🐾</h2>
+    <p class="win-caption" id="winCaption"></p>
     <div class="win-corgis" aria-hidden="true">
       <svg class="win-corgi"><use href="#icon-corgi"></use></svg>
       <svg class="win-corgi"><use href="#icon-corgi"></use></svg>
@@ -869,6 +880,8 @@
   var pawHintEl = document.getElementById('pawHint');
   var unlockListEl = document.getElementById('unlockList');
   var nextUnlockEl = document.getElementById('nextUnlock');
+  var collectionLineEl = document.getElementById('collectionLine');
+  var packLineEl = document.getElementById('packLine');
   var wearUnlockBtn = document.getElementById('wearUnlockBtn');
   var corgiSymbolEl = document.getElementById('icon-corgi');
   var pawSymbolEl = document.getElementById('icon-paw');
@@ -912,6 +925,7 @@
   var winTimeEl = document.getElementById('winTime');
   var winScoreEl = document.getElementById('winScore');
   var winBestEl = document.getElementById('winBest');
+  var winCaptionEl = document.getElementById('winCaption');
   var playAgainBtn = document.getElementById('playAgainBtn');
   var winHomeBtn = document.getElementById('winHomeBtn');
   var failOverlay = document.getElementById('failOverlay');
@@ -1640,6 +1654,40 @@
     });
   }
 
+  // A running count of the unlock ladder, right under the tagline where the
+  // random hero corgi already lives - turns "there are 62 of these" into a
+  // number that visibly climbs, the same way the other stats do. Kept out of
+  // the stats grid itself so an odd total doesn't leave one tile dangling in
+  // its own row.
+  function renderCollectionLine(){
+    if(!collectionLineEl) return;
+    var highest = loadLevelState().highest;
+    var have = 0;
+    CORGI_SKINS.forEach(function(s){ if(highest >= s.level) have++; });
+    collectionLineEl.innerHTML = '<b>' + have + '</b> of ' + CORGI_SKINS.length + ' corgis collected';
+  }
+
+  // Pack standing on the home screen rather than buried in settings - it's
+  // the one social bit of the app, and nobody will remember to go looking
+  // for it otherwise. Silently hides itself for anyone not signed into a
+  // pack, and never blocks on the network to show it.
+  function renderPackLine(){
+    if(!packLineEl) return;
+    var pack = readLocal(PACK_KEY);
+    if(!pack || !window.CorgdokuCloud || !window.CorgdokuCloud.state().signedIn){
+      packLineEl.hidden = true;
+      return;
+    }
+    window.CorgdokuCloud.readPack(pack).then(function(data){
+      if(!data || data.members.length < 2){ packLineEl.hidden = true; return; }
+      var rank = -1;
+      for(var i=0;i<data.members.length;i++){ if(data.members[i].isMe){ rank = i+1; break; } }
+      if(rank < 0){ packLineEl.hidden = true; return; }
+      packLineEl.innerHTML = '🐾 <b>#' + rank + '</b> of ' + data.members.length + ' in ' + escapeText(data.name);
+      packLineEl.hidden = false;
+    }).catch(function(){ packLineEl.hidden = true; });
+  }
+
   function formatTime(sec){
     var m = Math.floor(sec/60), s = sec%60;
     return m + ':' + (s<10 ? '0'+s : s);
@@ -1908,6 +1956,8 @@
       renderStatsGrid();
       renderSkinGrid();
       renderPawGrid();
+      renderCollectionLine();
+      renderPackLine();
     }
   };
 
@@ -1983,6 +2033,10 @@
     signInBtn.hidden = signedIn;
     signedInBox.hidden = !signedIn;
     accountBlurbEl.hidden = signedIn;
+    // The real auth state can settle a moment after launch (session restore
+    // is async), which is exactly when the home-screen pack line needs to
+    // catch up rather than being stuck on whatever it guessed at startup.
+    renderPackLine();
     if(!signedIn) return;
     accountNameEl.textContent = readLocal(NAME_KEY) || st.name || 'Corgi fan';
     if(!syncPending) setSyncLine('Progress saved');
@@ -2048,6 +2102,8 @@
     renderLevelCard();
     renderDailyCard();
     renderStatsGrid();
+    renderCollectionLine();
+    renderPackLine();
     startHeroCorgiCycle();
   }
 
@@ -2939,6 +2995,44 @@
     wearUnlockBtn.hidden = true;
   });
 
+  // A silly one-liner on every win, purely for flavor - picked fresh each
+  // time, never the same one twice in a row.
+  var VICTORY_CAPTIONS = [
+    "Absolutely herding the yard!",
+    "10/10 zoomies achieved.",
+    "Paws down, that was pawsome.",
+    "Corgi-approved victory.",
+    "Zero nose-to-nose incidents. Nice work.",
+    "That's a full-tail-wag performance.",
+    "Not a single stray paw in sight.",
+    "You herded like a pro.",
+    "Look at those good boys go!",
+    "Certified corgi chaos, tamed.",
+    "The yard has never been tidier.",
+    "Smooth herding, smoother corgis.",
+    "That deserves a treat.",
+    "Somewhere, a corgi is very proud of you.",
+    "Short legs, big brain energy.",
+    "The pack is impressed.",
+    "Nailed it. The corgis agree.",
+    "Every corgi accounted for.",
+    "Textbook herding technique.",
+    "The good boys thank you.",
+    "Puzzle: tamed. Corgis: thrilled.",
+    "That's how you earn belly rubs.",
+    "Master herder status: confirmed.",
+    "Squeaky clean solve."
+  ];
+  var lastVictoryCaptionIdx = -1;
+  function pickVictoryCaption(){
+    if(VICTORY_CAPTIONS.length <= 1) return VICTORY_CAPTIONS[0] || '';
+    var idx;
+    do{ idx = Math.floor(Math.random() * VICTORY_CAPTIONS.length); }
+    while(idx === lastVictoryCaptionIdx);
+    lastVictoryCaptionIdx = idx;
+    return VICTORY_CAPTIONS[idx];
+  }
+
   function onSolved(){
     solved = true;
     clearHint();
@@ -2986,6 +3080,7 @@
     winHomeBtn.hidden = dailyMode;
     playAgainBtn.textContent = dailyMode ? "Replay today's puzzle" : 'Replay this level';
 
+    winCaptionEl.textContent = pickVictoryCaption();
     winTimeEl.textContent = 'Solved in ' + formatTime(elapsedSec);
     winScoreEl.textContent = 'Score: ' + score + (flawless ? ' (flawless +'+FLAWLESS_BONUS+'!)' : '');
     winBestEl.textContent = isNewBest ? 'New best score! 🎉' : ('Best: ' + best[n]);
@@ -3135,6 +3230,8 @@
   renderLevelCard();
   renderDailyCard();
   renderStatsGrid();
+  renderCollectionLine();
+  renderPackLine();
   startHeroCorgiCycle();
 
   // Someone who signed in before gets reconnected quietly on launch. Anyone
