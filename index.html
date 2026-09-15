@@ -487,7 +487,7 @@
   }
   /* Cells fade in with a diagonal stagger so a new board arrives deliberately
      rather than snapping in after the generation pause. */
-  .cell{ animation:cellIn .34s cubic-bezier(.2,.9,.3,1) backwards; }
+  .cell{ animation:cellIn .44s cubic-bezier(.2,.9,.3,1) backwards; }
   @keyframes cellIn{
     0%{ opacity:0; transform:scale(.72); }
     60%{ opacity:1; transform:scale(1.04); }
@@ -2913,7 +2913,7 @@
         // the board arrives along one travelling wavefront rather than all at
         // once. Distance from bottom-left = how far up (n-1-r) plus how far
         // right (c), which makes every cell on the same diagonal land together.
-        cell.style.animationDelay = (((n - 1 - r) + c) * 26) + 'ms';
+        cell.style.animationDelay = (((n - 1 - r) + c) * 48) + 'ms';
 
         var outer = 3, inner = 1;
         var borderColor = 'var(--board-frame)';
