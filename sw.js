@@ -1,6 +1,6 @@
 // Bump this on every deploy - old caches are dropped on activate, and it's
 // what forces a stale service worker to notice there's an update at all.
-var CACHE_NAME = 'corgdoku-v26';
+var CACHE_NAME = 'corgdoku-v27';
 var CORGI_IDS = [
   'classic','happy','wink','sleepy','blep','cream','fox','sable','tri','patch','shades','party',
   'crowned','batter','bookworm','gentleman','darling','frosty','lucky','smitten','dino','bandit',
@@ -49,13 +49,28 @@ self.addEventListener('activate', function(event){
 // for offline support, but it meant every reopen showed last version's
 // content while quietly fetching this version for "next time" - so updates
 // never visibly landed. Freshness matters more than offline support here.
+//
+// The catch that took a while to spot: a plain fetch() still consults the
+// HTTP cache, and GitHub Pages serves index.html with max-age=600. So this
+// was really "up to ten minutes stale first, network second", and a fresh
+// deploy genuinely would not appear on reopening until that expired.
+// Documents now bypass the HTTP cache outright. Everything else keeps using
+// it on purpose - re-downloading the corgi art on every single launch would
+// be a far worse trade than a slightly stale image that never changes anyway.
 self.addEventListener('fetch', function(event){
   if(event.request.method !== 'GET') return;
+  var isDoc = event.request.mode === 'navigate';
+  // A navigate-mode Request can't be passed to the Request constructor, so
+  // the bypass is expressed as a fresh fetch of the same URL.
+  var fromNetwork = isDoc
+    ? fetch(event.request.url, {cache:'reload', credentials:'same-origin'})
+    : fetch(event.request);
   event.respondWith(
-    fetch(event.request).then(function(response){
+    fromNetwork.then(function(response){
       if(response && response.status === 200 && response.type === 'basic'){
         var copy = response.clone();
-        caches.open(CACHE_NAME).then(function(cache){ cache.put(event.request, copy); });
+        var key = isDoc ? event.request.url : event.request;
+        caches.open(CACHE_NAME).then(function(cache){ cache.put(key, copy); });
       }
       return response;
     }).catch(function(){

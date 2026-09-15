@@ -3557,7 +3557,14 @@
 <script>
   if('serviceWorker' in navigator){
     window.addEventListener('load', function(){
-      navigator.serviceWorker.register('sw.js').catch(function(){});
+      // updateViaCache:'none' so the browser's check for a new sw.js also
+      // skips the HTTP cache - otherwise the very file that ships the fix
+      // could itself sit stale behind GitHub Pages' max-age=600. The extra
+      // update() asks for that check immediately on launch rather than
+      // whenever the browser would have got round to it.
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+        .then(function(reg){ reg.update(); })
+        .catch(function(){});
     });
   }
 </script>
