@@ -77,16 +77,31 @@
   /* ---------- Hero ---------- */
   .hero{ text-align:center; position:relative; }
   .settings-fab{ position:absolute; top:0; right:0; }
+  .title-row{ display:flex; align-items:center; justify-content:center; gap:.3rem; margin:0 0 .1rem; }
   .hero h1{
     font-family:var(--font-display);
     font-weight:800;
     font-size:clamp(2.4rem, 8vw, 3.4rem);
-    margin:0 0 .1rem;
+    margin:0;
     color:var(--ink);
     text-wrap:balance;
     letter-spacing:.5px;
   }
   .hero h1 .dot{ color:var(--accent); }
+  /* A random corgi cycling through every skin, unlocked or not - pure home
+     -screen charm, independent of whichever skin the player has equipped. */
+  .hero-corgi{
+    width:clamp(2rem, 7vw, 2.8rem);
+    height:clamp(2rem, 7vw, 2.8rem);
+    display:block;
+    object-fit:contain;
+    animation:heroCorgiPop .4s cubic-bezier(.2,.9,.3,1);
+  }
+  @keyframes heroCorgiPop{
+    0%{ transform:scale(.5) rotate(-10deg); opacity:0; }
+    100%{ transform:scale(1) rotate(0deg); opacity:1; }
+  }
+  @media (prefers-reduced-motion: reduce){ .hero-corgi{ animation:none; } }
   .leash{ width:min(260px, 60%); height:14px; margin:.2rem auto .6rem; display:block; }
   .leash path{ fill:none; stroke:var(--accent); stroke-width:3; stroke-linecap:round; }
   .tagline{
@@ -656,7 +671,10 @@
     <section id="homeScreen">
       <header class="hero">
         <button id="settingsBtn" class="icon-btn settings-fab" title="Settings">⚙️</button>
-        <h1>Corgdoku<span class="dot">.</span></h1>
+        <div class="title-row">
+          <h1>Corgdoku<span class="dot">.</span></h1>
+          <img id="heroCorgi" class="hero-corgi" alt="" aria-hidden="true">
+        </div>
         <svg class="leash" viewBox="0 0 260 14"><path d="M2,7 Q32,-2 62,7 T122,7 T182,7 T242,7"/></svg>
         <p class="tagline">One good boy per yard. No shared paths. No nose-to-nose.</p>
       </header>
@@ -821,6 +839,7 @@
 
   var boardEl = document.getElementById('board');
   var homeScreen = document.getElementById('homeScreen');
+  var heroCorgiEl = document.getElementById('heroCorgi');
   var gameScreen = document.getElementById('gameScreen');
   var statsGridEl = document.getElementById('statsGrid');
   var playLevelBtn = document.getElementById('playLevelBtn');
@@ -1186,6 +1205,38 @@
     {id:'toughpup',   name:'Tough Pup',   level:970},
     {id:'cozy',       name:'Cozy',        level:1000}
   ];
+
+  // ---------------------------------------------------------------------
+  // A random corgi next to the home-screen title, cycling through every
+  // skin whether the player has unlocked it or not - pure decoration, a
+  // little preview of the pack, entirely separate from whichever skin is
+  // actually equipped (that one still comes from the shared #icon-corgi
+  // symbol wherever it appears in the game itself).
+  // ---------------------------------------------------------------------
+  var heroCorgiTimer = null;
+  var heroCorgiLastId = null;
+  function pickHeroCorgi(){
+    if(!heroCorgiEl) return;
+    var pick;
+    do{ pick = CORGI_SKINS[Math.floor(Math.random() * CORGI_SKINS.length)]; }
+    while(CORGI_SKINS.length > 1 && pick.id === heroCorgiLastId);
+    heroCorgiLastId = pick.id;
+    heroCorgiEl.src = 'art/corgis/' + pick.id + '.png';
+    // Restart the pop-in animation on every swap, not just the first paint.
+    heroCorgiEl.style.animation = 'none';
+    void heroCorgiEl.offsetWidth; // force a reflow so the reset actually takes
+    heroCorgiEl.style.animation = '';
+  }
+  function startHeroCorgiCycle(){
+    pickHeroCorgi();
+    if(heroCorgiTimer) clearInterval(heroCorgiTimer);
+    heroCorgiTimer = setInterval(function(){
+      // Cheaper to just skip a tick than to hunt down every place that
+      // navigates away from the home screen and have it tear this down.
+      if(homeScreen.hidden) return;
+      pickHeroCorgi();
+    }, 4000);
+  }
 
   var SKIN_KEY = 'corgdoku_corgi_v1';
   var currentSkinId = CORGI_SKINS[0].id;
@@ -1980,6 +2031,7 @@
     renderLevelCard();
     renderDailyCard();
     renderStatsGrid();
+    startHeroCorgiCycle();
   }
 
   // UI "back" affordances go through history so they and the system gesture
@@ -3066,6 +3118,7 @@
   renderLevelCard();
   renderDailyCard();
   renderStatsGrid();
+  startHeroCorgiCycle();
 
   // Someone who signed in before gets reconnected quietly on launch. Anyone
   // else never fetches the SDK at all, so a signed-out install still makes
