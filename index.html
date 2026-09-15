@@ -91,8 +91,8 @@
   /* A random corgi cycling through every skin, unlocked or not - pure home
      -screen charm, independent of whichever skin the player has equipped. */
   .hero-corgi{
-    width:clamp(2rem, 7vw, 2.8rem);
-    height:clamp(2rem, 7vw, 2.8rem);
+    width:clamp(3rem, 13vw, 4.6rem);
+    height:clamp(3rem, 13vw, 4.6rem);
     display:block;
     object-fit:contain;
     animation:heroCorgiPop .4s cubic-bezier(.2,.9,.3,1);
@@ -971,20 +971,28 @@
   var hintedCell = null;
   var hintTimer = null;
 
+  // Capped at 10x10: an 11 or 12-wide board is a real squeeze on a phone
+  // screen (Meowdoku's own hardest size is 10x10 too), and 10 is already
+  // plenty of room for the deepest technique the solver knows.
   var SIZES = [
     {n:5, name:"Pup"},
     {n:6, name:"Corgi"},
     {n:7, name:"Herder"},
     {n:8, name:"Pack Leader"},
     {n:9, name:"Big Litter"},
-    {n:10, name:"Great Herd"},
-    {n:11, name:"Grand Pack"},
-    {n:12, name:"Whole Kennel"}
+    {n:10, name:"Great Herd"}
   ];
 
   // Levels run 1..infinity, in blocks of ten. Every block runs the SAME
   // rhythm - a warm-up, some that ask more, deliberate breathers at positions
-  // 5 and 8, then a 12x12 boss - and every board size shows up once per block.
+  // 5 and 8, then a 10x10 boss - and every board size shows up in every
+  // block. Size 10 only ever appears at the boss slot, same as the old
+  // 12-only-as-boss design before the max size was pulled in.
+  //
+  // With only 6 sizes to fill 10 slots, 7 and 9 each get a second turn later
+  // in the block at a noticeably higher beat - the same size coming back
+  // around, but asked to do more with it, which reads as an escalation
+  // rather than a repeat.
   //
   // `beat` is where that slot sits on the block's difficulty curve, 0..1. It
   // never changes. What changes is the tier (below), which stretches the top
@@ -994,20 +1002,20 @@
   // achievement, and the easy ones are what make the climb feel like motion.
   var BLOCK_RHYTHM = [
     {size:5,  beat:0.00},  // 1  warm-up
-    {size:7,  beat:0.15},  // 2
-    {size:6,  beat:0.40},  // 3
-    {size:9,  beat:0.55},  // 4
+    {size:6,  beat:0.20},  // 2
+    {size:7,  beat:0.40},  // 3
+    {size:8,  beat:0.55},  // 4
     {size:5,  beat:0.00},  // 5  breather
-    {size:8,  beat:0.50},  // 6
-    {size:10, beat:0.80},  // 7  the block's hard one
-    {size:6,  beat:0.10},  // 8  breather
-    {size:11, beat:0.85},  // 9
-    {size:12, beat:1.00}   // 10 boss
+    {size:9,  beat:0.60},  // 6
+    {size:7,  beat:0.85},  // 7  size 7 again, pushed much harder
+    {size:6,  beat:0.15},  // 8  breather
+    {size:9,  beat:0.90},  // 9  size 9 again, pushed harder still - pre-boss ramp
+    {size:10, beat:1.00}   // 10 boss
   ];
 
   // Four tiers, spread out deliberately: the ramp is meant to be felt over
   // weeks, not levels. Past tier 3 the shape holds steady - the solver knows
-  // four techniques and boards stop at 12x12, so that's the real ceiling.
+  // four techniques and boards stop at 10x10, so that's the real ceiling.
   // Steps land on block boundaries so a block of ten is all one tier - the
   // rhythm inside it stays the shape the player has learned to expect.
   function tierForLevel(level){
@@ -3213,6 +3221,14 @@
     renderPawGrid();
     settingsOverlay.hidden = false;
     pushScreen('settings');
+    // With 62 corgis, the sheet is a much longer scroll than the visible
+    // window - land on whichever one is actually equipped instead of always
+    // opening on the colour themes at the very top. A short defer, not a
+    // rAF, so it still runs even if the tab isn't actively rendering.
+    setTimeout(function(){
+      var selected = skinGridEl.querySelector('.skin-btn.selected');
+      if(selected) selected.scrollIntoView({block:'center'});
+    }, 0);
   });
   closeSettingsBtn.addEventListener('click', function(){
     if(history.state && history.state.s === 'settings') history.back();

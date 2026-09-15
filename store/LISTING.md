@@ -36,7 +36,7 @@ step to find — you're never being asked to flip a coin.
 
 GETS HARDER THE RIGHT WAY
 Levels run from 1 upward in blocks of ten, and every block is a mix: a couple
-of quick ones, a couple that make you work, a breather, then a 12x12 boss.
+of quick ones, a couple that make you work, a breather, then a 10x10 boss.
 Climbing doesn't turn every board into a grind — it raises what the hard ones
 ask of you while leaving the gentle ones gentle, so there's always somewhere
 to catch your breath.
