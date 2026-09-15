@@ -76,33 +76,52 @@
 
   /* ---------- Hero ---------- */
   .hero{ text-align:center; position:relative; }
-  .settings-fab{ position:absolute; top:0; right:0; }
-  .title-row{ display:flex; align-items:center; justify-content:center; gap:.3rem; margin:0 0 .1rem; }
+  /* Profile button: the corgi you actually have equipped, framed, standing in
+     for the usual avatar. Settings moved inside it. */
+  .profile-fab{
+    position:absolute; top:-2px; right:0;
+    width:52px; height:52px;
+    padding:0;
+    border-radius:50%;
+    border:3px solid var(--accent);
+    background:var(--surface);
+    box-shadow:var(--elevation-1);
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+    transition:transform .12s ease;
+  }
+  .profile-fab:hover{ transform:translateY(-2px); }
+  .profile-corgi{ width:88%; height:88%; object-fit:contain; display:block; }
   .hero h1{
     font-family:var(--font-display);
     font-weight:800;
     font-size:clamp(2.4rem, 8vw, 3.4rem);
-    margin:0;
+    margin:0 0 .1rem;
     color:var(--ink);
-    text-wrap:balance;
     letter-spacing:.5px;
+    /* The corgi o's are taller than the letters, so a little breathing room
+       above keeps their ears clear of the edge. */
+    padding-top:.05em;
   }
   .hero h1 .dot{ color:var(--accent); }
-  /* A random corgi cycling through every skin, unlocked or not - pure home
-     -screen charm, independent of whichever skin the player has equipped. */
-  .hero-corgi{
-    width:clamp(3rem, 13vw, 4.6rem);
-    height:clamp(3rem, 13vw, 4.6rem);
-    display:block;
+  /* The two o's in the wordmark, cycling through the whole pack. Sized a
+     touch over the cap height so the ears read, and nudged down so the face
+     sits on the baseline where the letter o would. */
+  .title-corgi{
+    display:inline-block;
+    width:.76em; height:.76em;
     object-fit:contain;
+    vertical-align:-.13em;
+    margin:0 -.02em;
     animation:heroCorgiPop .4s cubic-bezier(.2,.9,.3,1);
   }
   @keyframes heroCorgiPop{
     0%{ transform:scale(.5) rotate(-10deg); opacity:0; }
     100%{ transform:scale(1) rotate(0deg); opacity:1; }
   }
-  @media (prefers-reduced-motion: reduce){ .hero-corgi{ animation:none; } }
-  .leash{ width:min(260px, 60%); height:14px; margin:.2rem auto .6rem; display:block; }
+  @media (prefers-reduced-motion: reduce){ .title-corgi{ animation:none; } }
+  .leash{ width:min(260px, 60%); height:14px; margin:.1rem auto .4rem; display:block; }
   .leash path{ fill:none; stroke:var(--accent); stroke-width:3; stroke-linecap:round; }
   .tagline{
     margin:0;
@@ -120,7 +139,7 @@
   .mini-stat-line b{ color:var(--accent); }
 
   /* ---------- Home screen ---------- */
-  #homeScreen{ display:flex; flex-direction:column; gap:1rem; }
+  #homeScreen{ display:flex; flex-direction:column; gap:.75rem; }
   .section-label{
     font-family:var(--font-display);
     font-weight:700;
@@ -138,7 +157,23 @@
     padding:1.1rem 1.25rem;
     box-shadow:var(--elevation-1);
   }
-  .level-play{ width:100%; font-size:1.3rem; padding:1rem 1.5rem; }
+  .level-play{ width:100%; font-size:1.3rem; padding:.8rem 1.5rem; }
+  /* Difficulty + board size ride under the level number rather than beside
+     it - inline, the longest case ("Play Level 1000 🐾 · Extreme") runs past
+     the button on a narrow phone. Tinted by difficulty, but kept translucent
+     so it reads on every one of the eight themes' accent colours. */
+  .level-sub{
+    display:block;
+    font-size:.72rem;
+    font-weight:800;
+    letter-spacing:.04em;
+    margin-top:.15rem;
+    opacity:.9;
+  }
+  .level-sub.diff-0{ color:#DFF5E4; }
+  .level-sub.diff-1{ color:#FFF1CF; }
+  .level-sub.diff-2{ color:#FFE0C4; }
+  .level-sub.diff-3{ color:#FFD2D2; }
   .daily-btn{ width:100%; margin-top:.6rem; font-size:.85rem; padding:.6rem 1rem; }
   .level-play.boss{
     background:linear-gradient(135deg, var(--accent), var(--board-frame));
@@ -250,7 +285,7 @@
   @media (prefers-reduced-motion: reduce){
     .splash-mark, .splash-studio, .splash-bubble{ animation:none; }
   }
-  .stats-grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:.85rem; }
+  .stats-grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:.75rem; }
   @media (min-width:520px){ .stats-grid{ grid-template-columns:repeat(4, 1fr); } }
   .stat-card{
     display:flex;
@@ -452,8 +487,12 @@
   }
   /* Cells fade in with a diagonal stagger so a new board arrives deliberately
      rather than snapping in after the generation pause. */
-  .cell{ animation:cellIn .26s ease backwards; }
-  @keyframes cellIn{ from{ opacity:0; } to{ opacity:1; } }
+  .cell{ animation:cellIn .34s cubic-bezier(.2,.9,.3,1) backwards; }
+  @keyframes cellIn{
+    0%{ opacity:0; transform:scale(.72); }
+    60%{ opacity:1; transform:scale(1.04); }
+    100%{ opacity:1; transform:scale(1); }
+  }
   @media (prefers-reduced-motion: reduce){ .cell{ animation:none; } }
   .icon-wrap.pop{ animation:piecePop .34s cubic-bezier(.2,.9,.3,1); }
   @keyframes piecePop{
@@ -572,7 +611,7 @@
     color:var(--ink-muted);
     font-size:.78rem;
     border-top:1.5px dashed var(--surface-border);
-    padding-top:1rem;
+    padding-top:.7rem;
   }
 
   /* ---------- Win overlay ---------- */
@@ -653,6 +692,22 @@
   .danger-box p{ margin:0 0 .4rem; font-size:.74rem; font-weight:700; line-height:1.4; }
   .danger-note{ color:var(--ink-muted); }
   button.danger{ background:var(--error); color:#fff; }
+  .setting-row{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:.75rem; margin:.45rem 0;
+  }
+  .setting-label{ font-size:.85rem; font-weight:700; color:var(--ink); }
+  .toggle-btn{ min-width:74px; font-size:.8rem; padding:.4rem .7rem; }
+  .toggle-btn[aria-pressed="false"]{ opacity:.6; }
+  .volume-slider{ flex:1; max-width:60%; accent-color:var(--accent); }
+  .link-out{
+    flex:1; text-align:center;
+    font-size:.8rem; font-weight:800;
+    color:var(--accent); text-decoration:none;
+    border:2px solid var(--surface-border); border-radius:12px;
+    padding:.5rem .6rem;
+  }
+  .settings-link{ margin-top:1.1rem; }
   .backup-row{ display:flex; gap:.5rem; margin-top:.5rem; }
   .backup-row button{ flex:1; font-size:.8rem; padding:.5rem .6rem; }
   .backup-status{ margin:.5rem 0 0; font-size:.75rem; font-weight:700; color:var(--ink-muted); min-height:1em; }
@@ -695,11 +750,13 @@
   <main>
     <section id="homeScreen">
       <header class="hero">
-        <button id="settingsBtn" class="icon-btn settings-fab" title="Settings">⚙️</button>
-        <div class="title-row">
-          <h1>Corgdoku<span class="dot">.</span></h1>
-          <img id="heroCorgi" class="hero-corgi" alt="" aria-hidden="true">
-        </div>
+        <button id="profileBtn" class="profile-fab" title="Profile">
+          <img id="profileCorgi" class="profile-corgi" alt="Profile">
+        </button>
+        <!-- The two o's are corgi faces that cycle through the whole pack.
+             alt="o" keeps the heading reading as "Corgdoku" to a screen
+             reader rather than "C rgd ku". -->
+        <h1>C<img class="title-corgi" id="titleCorgiA" alt="o">rgd<img class="title-corgi" id="titleCorgiB" alt="o">ku<span class="dot">.</span></h1>
         <svg class="leash" viewBox="0 0 260 14"><path d="M2,7 Q32,-2 62,7 T122,7 T182,7 T242,7"/></svg>
         <p class="tagline">One good boy per yard. No shared paths. No nose-to-nose.</p>
         <p class="mini-stat-line" id="collectionLine"></p>
@@ -804,9 +861,9 @@
   </div>
 </div>
 
-<div id="settingsOverlay" class="win-overlay" hidden>
+<div id="profileOverlay" class="win-overlay" hidden>
   <div class="win-card">
-    <h2>Settings</h2>
+    <h2>Profile</h2>
     <p class="section-label">Choose a style</p>
     <div class="scheme-row" id="schemeRow"></div>
     <p class="section-label backup-label">Your corgi</p>
@@ -825,17 +882,6 @@
         <p class="sync-line" id="syncLine">Progress saved</p>
         <div class="backup-row">
           <button type="button" id="signOutBtn">Sign out</button>
-          <button type="button" id="deleteDataBtn">Delete my data</button>
-        </div>
-        <div id="deleteConfirmBox" class="danger-box" hidden>
-          <p>This permanently erases the backup of your progress and closes your
-            account. It can't be undone.</p>
-          <p class="danger-note">Your progress on this phone is kept — you just
-            won't be backed up any more.</p>
-          <div class="backup-row">
-            <button type="button" id="cancelDeleteBtn">Cancel</button>
-            <button type="button" id="confirmDeleteBtn" class="danger">Delete it</button>
-          </div>
         </div>
         <p class="section-label backup-label">Your pack</p>
         <div id="noPackBox">
@@ -856,6 +902,62 @@
       </div>
       <p id="accountStatus" class="backup-status"></p>
     </div>
+    <button type="button" id="openSettingsBtn" class="link-btn settings-link">⚙️ Settings</button>
+    <button id="closeProfileBtn" class="primary">Done</button>
+  </div>
+</div>
+
+<div id="settingsOverlay" class="win-overlay" hidden>
+  <div class="win-card">
+    <h2>Settings</h2>
+
+    <p class="section-label">Sound</p>
+    <div class="setting-row">
+      <span class="setting-label">Sound effects</span>
+      <button type="button" id="soundToggleBtn" class="toggle-btn" aria-pressed="true">On</button>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Volume</span>
+      <input type="range" id="volumeSlider" class="volume-slider" min="0" max="100" step="5"
+             aria-label="Volume">
+    </div>
+
+    <p class="section-label backup-label">About</p>
+    <div class="backup-row">
+      <a class="link-out" href="terms.html" target="_blank" rel="noopener">Terms of Service</a>
+      <a class="link-out" href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>
+    </div>
+
+    <p class="section-label backup-label">Your data</p>
+    <div id="cloudDataBox" hidden>
+      <p class="account-blurb">Signed in as <b id="settingsAccountName">—</b>. Your progress is
+        backed up.</p>
+      <button type="button" id="deleteDataBtn">Delete my backup &amp; account</button>
+      <div id="deleteConfirmBox" class="danger-box" hidden>
+        <p>This permanently erases the backup of your progress and closes your
+          account. It can't be undone.</p>
+        <p class="danger-note">Your progress on this phone is kept — you just
+          won't be backed up any more.</p>
+        <div class="backup-row">
+          <button type="button" id="cancelDeleteBtn">Cancel</button>
+          <button type="button" id="confirmDeleteBtn" class="danger">Delete it</button>
+        </div>
+      </div>
+    </div>
+    <button type="button" id="resetLocalBtn">Reset progress on this phone</button>
+    <div id="resetConfirmBox" class="danger-box" hidden>
+      <p>This clears your level, stats and collection on this phone. It can't be
+        undone.</p>
+      <p class="danger-note" id="resetSignedInNote" hidden>You're signed in, so signing
+        in again would restore all of it from your backup. To remove that copy too,
+        use “Delete my backup &amp; account” above first.</p>
+      <div class="backup-row">
+        <button type="button" id="cancelResetBtn">Cancel</button>
+        <button type="button" id="confirmResetBtn" class="danger">Reset it</button>
+      </div>
+    </div>
+    <p id="settingsStatus" class="backup-status"></p>
+
     <button id="closeSettingsBtn" class="primary">Done</button>
   </div>
 </div>
@@ -867,7 +969,9 @@
 
   var boardEl = document.getElementById('board');
   var homeScreen = document.getElementById('homeScreen');
-  var heroCorgiEl = document.getElementById('heroCorgi');
+  var titleCorgiA = document.getElementById('titleCorgiA');
+  var titleCorgiB = document.getElementById('titleCorgiB');
+  var profileCorgiEl = document.getElementById('profileCorgi');
   var gameScreen = document.getElementById('gameScreen');
   var statsGridEl = document.getElementById('statsGrid');
   var playLevelBtn = document.getElementById('playLevelBtn');
@@ -887,9 +991,22 @@
   var pawSymbolEl = document.getElementById('icon-paw');
   var homeBtn = document.getElementById('homeBtn');
   var packLabelEl = document.getElementById('packLabel');
-  var settingsBtn = document.getElementById('settingsBtn');
+  var profileBtn = document.getElementById('profileBtn');
+  var profileOverlay = document.getElementById('profileOverlay');
+  var closeProfileBtn = document.getElementById('closeProfileBtn');
+  var openSettingsBtn = document.getElementById('openSettingsBtn');
   var settingsOverlay = document.getElementById('settingsOverlay');
   var closeSettingsBtn = document.getElementById('closeSettingsBtn');
+  var soundToggleBtn = document.getElementById('soundToggleBtn');
+  var volumeSlider = document.getElementById('volumeSlider');
+  var settingsAccountName = document.getElementById('settingsAccountName');
+  var cloudDataBox = document.getElementById('cloudDataBox');
+  var settingsStatusEl = document.getElementById('settingsStatus');
+  var resetLocalBtn = document.getElementById('resetLocalBtn');
+  var resetConfirmBox = document.getElementById('resetConfirmBox');
+  var resetSignedInNote = document.getElementById('resetSignedInNote');
+  var cancelResetBtn = document.getElementById('cancelResetBtn');
+  var confirmResetBtn = document.getElementById('confirmResetBtn');
   var timerEl = document.getElementById('timer');
   var scoreEl = document.getElementById('score');
   var scoreChipEl = document.querySelector('.score-chip');
@@ -1246,35 +1363,50 @@
   ];
 
   // ---------------------------------------------------------------------
-  // A random corgi next to the home-screen title, cycling through every
-  // skin whether the player has unlocked it or not - pure decoration, a
-  // little preview of the pack, entirely separate from whichever skin is
-  // actually equipped (that one still comes from the shared #icon-corgi
-  // symbol wherever it appears in the game itself).
+  // The two o's in the wordmark, cycling through every skin whether the
+  // player has unlocked it or not - pure decoration and a little preview of
+  // the pack. Entirely separate from whichever skin is actually equipped
+  // (that one comes from the shared #icon-corgi symbol in-game, and from the
+  // profile button up in the corner).
   // ---------------------------------------------------------------------
   var heroCorgiTimer = null;
-  var heroCorgiLastId = null;
-  function pickHeroCorgi(){
-    if(!heroCorgiEl) return;
-    var pick;
-    do{ pick = CORGI_SKINS[Math.floor(Math.random() * CORGI_SKINS.length)]; }
-    while(CORGI_SKINS.length > 1 && pick.id === heroCorgiLastId);
-    heroCorgiLastId = pick.id;
-    heroCorgiEl.src = 'art/corgis/' + pick.id + '.png';
+  function pickTitleCorgis(){
+    if(!titleCorgiA || !titleCorgiB) return;
+    // Two different corgis, and neither repeats what it was already showing,
+    // so every swap visibly changes both letters.
+    var a, b, guard = 0;
+    do{ a = CORGI_SKINS[Math.floor(Math.random() * CORGI_SKINS.length)]; }
+    while(titleCorgiA.dataset.id === a.id && ++guard < 20);
+    guard = 0;
+    do{ b = CORGI_SKINS[Math.floor(Math.random() * CORGI_SKINS.length)]; }
+    while((b.id === a.id || titleCorgiB.dataset.id === b.id) && ++guard < 20);
+    setTitleCorgi(titleCorgiA, a.id);
+    setTitleCorgi(titleCorgiB, b.id);
+  }
+  function setTitleCorgi(el, id){
+    el.dataset.id = id;
+    el.src = 'art/corgis/' + id + '.png';
     // Restart the pop-in animation on every swap, not just the first paint.
-    heroCorgiEl.style.animation = 'none';
-    void heroCorgiEl.offsetWidth; // force a reflow so the reset actually takes
-    heroCorgiEl.style.animation = '';
+    el.style.animation = 'none';
+    void el.offsetWidth; // force a reflow so the reset actually takes
+    el.style.animation = '';
   }
   function startHeroCorgiCycle(){
-    pickHeroCorgi();
+    pickTitleCorgis();
     if(heroCorgiTimer) clearInterval(heroCorgiTimer);
     heroCorgiTimer = setInterval(function(){
       // Cheaper to just skip a tick than to hunt down every place that
       // navigates away from the home screen and have it tear this down.
       if(homeScreen.hidden) return;
-      pickHeroCorgi();
+      pickTitleCorgis();
     }, 4000);
+  }
+
+  // The profile button always shows the skin actually equipped, so it reads
+  // as "you" rather than joining the decorative rotation in the title.
+  function renderProfileButton(){
+    if(!profileCorgiEl) return;
+    profileCorgiEl.src = 'art/corgis/' + currentSkinId + '.png';
   }
 
   var SKIN_KEY = 'corgdoku_corgi_v1';
@@ -1311,6 +1443,7 @@
       queueSync();
     }
     renderSkinGrid();
+    renderProfileButton();
   }
 
   function renderSkinGrid(){
@@ -1448,8 +1581,18 @@
   }
 
   var MUTE_KEY = 'corgdoku_muted';
+  var VOLUME_KEY = 'corgdoku_volume';
   var muted = false;
   try{ muted = localStorage.getItem(MUTE_KEY) === '1'; }catch(e){}
+  // Master volume, 0..1. Every sound in the game is built from the five
+  // helpers below, so scaling peakGain in each of them is the whole of it -
+  // there's no separate mixer to keep in sync.
+  var masterVolume = 1;
+  try{
+    var storedVol = parseFloat(localStorage.getItem(VOLUME_KEY));
+    if(!isNaN(storedVol) && storedVol >= 0 && storedVol <= 1) masterVolume = storedVol;
+  }catch(e){}
+  function vol(peakGain){ return Math.max(0.0001, peakGain * masterVolume); }
   var audioCtx = null;
 
   function getAudioCtx(){
@@ -1468,7 +1611,7 @@
     osc.type = type;
     osc.frequency.value = freq;
     gain.gain.setValueAtTime(0.0001, startTime);
-    gain.gain.linearRampToValueAtTime(peakGain, startTime + 0.015);
+    gain.gain.linearRampToValueAtTime(vol(peakGain), startTime + 0.015);
     gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
     osc.connect(gain).connect(ctx.destination);
     osc.start(startTime);
@@ -1482,7 +1625,7 @@
     osc.frequency.setValueAtTime(freqStart, startTime);
     osc.frequency.exponentialRampToValueAtTime(freqEnd, startTime + duration);
     gain.gain.setValueAtTime(0.0001, startTime);
-    gain.gain.linearRampToValueAtTime(peakGain, startTime + 0.015);
+    gain.gain.linearRampToValueAtTime(vol(peakGain), startTime + 0.015);
     gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
     osc.connect(gain).connect(ctx.destination);
     osc.start(startTime);
@@ -1501,7 +1644,7 @@
     filter.frequency.setValueAtTime(cutoff, startTime);
     filter.Q.value = q || 0.8;
     gain.gain.setValueAtTime(0.0001, startTime);
-    gain.gain.linearRampToValueAtTime(peakGain, startTime + 0.012);
+    gain.gain.linearRampToValueAtTime(vol(peakGain), startTime + 0.012);
     gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
     osc.connect(gain).connect(filter).connect(ctx.destination);
     osc.start(startTime);
@@ -1530,7 +1673,7 @@
     filter.frequency.exponentialRampToValueAtTime(Math.max(f1, 1), startTime + duration);
     var gain = ctx.createGain();
     gain.gain.setValueAtTime(0.0001, startTime);
-    gain.gain.linearRampToValueAtTime(peakGain, startTime + 0.006);
+    gain.gain.linearRampToValueAtTime(vol(peakGain), startTime + 0.006);
     gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
     src.connect(filter).connect(gain).connect(ctx.destination);
     src.start(startTime);
@@ -1600,6 +1743,27 @@
     muteBtn.textContent = muted ? '🔇' : '🔊';
     muteBtn.setAttribute('aria-pressed', muted ? 'true' : 'false');
     muteBtn.title = muted ? 'Unmute sound' : 'Mute sound';
+    // The in-game speaker icon and the Settings toggle are the same setting
+    // in two places, so they always move together.
+    if(soundToggleBtn){
+      soundToggleBtn.textContent = muted ? 'Off' : 'On';
+      soundToggleBtn.setAttribute('aria-pressed', muted ? 'false' : 'true');
+    }
+  }
+
+  function setSoundMuted(next){
+    muted = next;
+    try{ localStorage.setItem(MUTE_KEY, muted ? '1' : '0'); }catch(e){}
+    updateMuteButton();
+    if(!muted) getAudioCtx();
+  }
+
+  function setMasterVolume(v, persist){
+    masterVolume = Math.min(1, Math.max(0, v));
+    if(volumeSlider) volumeSlider.value = Math.round(masterVolume * 100);
+    if(persist !== false){
+      try{ localStorage.setItem(VOLUME_KEY, String(masterVolume)); }catch(e){}
+    }
   }
 
   function readBest(){
@@ -1700,6 +1864,24 @@
     var m = Math.floor(sec/60), s = sec%60;
     return m + ':' + (s<10 ? '0'+s : s);
   }
+  // Difficulty is really two axes: how deep the reasoning has to go (the
+  // technique floor) and how much board there is to track. Floor carries most
+  // of it; size only nudges the rating at 10x10, where the sheer volume makes
+  // even shallow reasoning a longer haul. Deliberately honest rather than
+  // flattering - a 5x5 warm-up at level 900 still says Easy, because it is.
+  var DIFFICULTY_NAMES = ['Easy', 'Medium', 'Hard', 'Extreme'];
+  function difficultyFor(info){
+    var score = info.floor + (info.n >= 10 ? 0.5 : 0);
+    var idx = score < 1.5 ? 0 : score < 2.5 ? 1 : score < 3.5 ? 2 : 3;
+    return {idx:idx, name:DIFFICULTY_NAMES[idx]};
+  }
+
+  function levelSubline(info){
+    var d = difficultyFor(info);
+    return '<span class="level-sub diff-' + d.idx + '">' + d.name +
+           ' · ' + info.n + '×' + info.n + '</span>';
+  }
+
   function renderLevelCard(){
     var st = loadLevelState();
     var info = sizeInfoForLevel(st.highest);
@@ -1707,14 +1889,19 @@
     // left off is the obvious thing to do rather than a hidden option.
     var resume = loadResume();
     if(resume){
-      playLevelBtn.innerHTML = resume.daily
-        ? 'Resume Daily Puzzle'
-        : 'Resume Level <span id="playLevelNum">' + resume.level + '</span>';
-      playLevelBtn.classList.toggle('boss', !resume.daily && sizeInfoForLevel(resume.level).boss);
+      if(resume.daily){
+        playLevelBtn.innerHTML = 'Resume Daily Puzzle';
+        playLevelBtn.classList.remove('boss');
+      } else {
+        var rInfo = sizeInfoForLevel(resume.level);
+        playLevelBtn.innerHTML = 'Resume Level <span id="playLevelNum">' + resume.level + '</span>' +
+          levelSubline(rInfo);
+        playLevelBtn.classList.toggle('boss', rInfo.boss);
+      }
       playLevelNumEl = document.getElementById('playLevelNum') || playLevelNumEl;
       return;
     }
-    playLevelBtn.innerHTML = 'Play Level <span id="playLevelNum"></span>';
+    playLevelBtn.innerHTML = 'Play Level <span id="playLevelNum"></span>' + levelSubline(info);
     playLevelNumEl = document.getElementById('playLevelNum');
     playLevelNumEl.textContent = st.highest + (info.boss ? ' 🐾' : '');
     playLevelBtn.classList.toggle('boss', info.boss);
@@ -1993,6 +2180,35 @@
   }
 
   function setAccountStatus(msg){ accountStatusEl.textContent = msg || ''; }
+  function setSettingsStatus(msg){ if(settingsStatusEl) settingsStatusEl.textContent = msg || ''; }
+
+  function renderSettingsSheet(){
+    if(!settingsOverlay) return;
+    var signedIn = !!(window.CorgdokuCloud && window.CorgdokuCloud.state().signedIn);
+    // The cloud-deletion block only means anything if there's a cloud copy.
+    cloudDataBox.hidden = !signedIn;
+    if(signedIn){
+      settingsAccountName.textContent =
+        readLocal(NAME_KEY) || window.CorgdokuCloud.state().name || 'Corgi fan';
+    }
+    resetSignedInNote.hidden = !signedIn;
+    deleteConfirmBox.hidden = true;
+    resetConfirmBox.hidden = true;
+    setSettingsStatus('');
+    updateMuteButton();
+    setMasterVolume(masterVolume, false);
+  }
+
+  // Wipes everything this game owns on this device. Deliberately does NOT
+  // touch the cloud copy or sign anyone out - that's the separate, clearly
+  // labelled action above it, and quietly doing both from one button would be
+  // a nasty surprise. The confirm text says so when it's relevant.
+  function resetLocalProgress(){
+    [STORAGE_KEY, STATS_KEY, LEVEL_KEY, DAILY_KEY, RESUME_KEY,
+     SKIN_KEY, PAW_KEY, PACK_KEY, NAME_KEY].forEach(function(k){
+      try{ localStorage.removeItem(k); }catch(e){}
+    });
+  }
 
   // ---------------------------------------------------------------------
   // Automatic sync. Hooked into the save functions themselves rather than
@@ -2045,6 +2261,9 @@
     // is async), which is exactly when the home-screen pack line needs to
     // catch up rather than being stuck on whatever it guessed at startup.
     renderPackLine();
+    // Same for the Settings sheet's cloud-data block, which only appears
+    // once there's actually a backup to delete.
+    renderSettingsSheet();
     if(!signedIn) return;
     accountNameEl.textContent = readLocal(NAME_KEY) || st.name || 'Corgi fan';
     if(!syncPending) setSyncLine('Progress saved');
@@ -2102,6 +2321,7 @@
     puzzleToken++; // drop any board still being generated
     dailyMode = false;
     clearHint();
+    profileOverlay.hidden = true;
     settingsOverlay.hidden = true;
     gameScreen.hidden = true;
     winOverlay.hidden = true;
@@ -2128,8 +2348,17 @@
 
   window.addEventListener('popstate', function(e){
     var s = (e.state && e.state.s) || 'home';
-    if(s === 'settings'){ settingsOverlay.hidden = false; return; }
+    // Settings sits on top of profile, so backing out of it drops to profile
+    // rather than all the way home - the sheet you came from is still open
+    // underneath.
+    if(s === 'settings'){
+      profileOverlay.hidden = false;
+      settingsOverlay.hidden = false;
+      return;
+    }
     settingsOverlay.hidden = true;
+    if(s === 'profile'){ profileOverlay.hidden = false; return; }
+    profileOverlay.hidden = true;
     if(s === 'game'){
       homeScreen.hidden = true;
       gameScreen.hidden = false;
@@ -2680,7 +2909,11 @@
         cell.className = 'cell';
         cell.dataset.r = r; cell.dataset.c = c;
         cell.style.setProperty('--cell-color', 'var(--pack-' + (regions[r][c] % 12) + ')');
-        cell.style.animationDelay = ((r + c) * 14) + 'ms';
+        // Diagonal sweep from the bottom-left corner up to the top-right, so
+        // the board arrives along one travelling wavefront rather than all at
+        // once. Distance from bottom-left = how far up (n-1-r) plus how far
+        // right (c), which makes every cell on the same diagonal land together.
+        cell.style.animationDelay = (((n - 1 - r) + c) * 26) + 'ms';
 
         var outer = 3, inner = 1;
         var borderColor = 'var(--board-frame)';
@@ -3164,16 +3397,17 @@
   confirmDeleteBtn.addEventListener('click', function(){
     if(!window.CorgdokuCloud) return;
     confirmDeleteBtn.disabled = true;
-    setAccountStatus('Deleting…');
+    setSettingsStatus('Deleting…');
     window.CorgdokuCloud.deleteEverything().then(function(){
       deleteConfirmBox.hidden = true;
       writeLocal(PACK_KEY, null);
       writeLocal(NAME_KEY, null);
       renderAccount(window.CorgdokuCloud.state());
-      setAccountStatus('Deleted. Your progress on this phone is untouched.');
+      renderSettingsSheet();
+      setSettingsStatus('Deleted. Your progress on this phone is untouched.');
     }, function(err){
       var code = err && err.code ? err.code : '';
-      setAccountStatus(code.indexOf('popup') >= 0
+      setSettingsStatus(code.indexOf('popup') >= 0
         ? 'Google needs you to confirm it’s you — try again.'
         : "Couldn't finish deleting. Nothing was half-removed; try again.");
     }).then(function(){ confirmDeleteBtn.disabled = false; });
@@ -3222,18 +3456,38 @@
   });
 
   refreshPackBtn.addEventListener('click', refreshPack);
-  muteBtn.addEventListener('click', function(){
-    muted = !muted;
-    try{ localStorage.setItem(MUTE_KEY, muted ? '1' : '0'); }catch(e){}
-    updateMuteButton();
-    if(!muted){ getAudioCtx(); }
+  muteBtn.addEventListener('click', function(){ setSoundMuted(!muted); });
+
+  soundToggleBtn.addEventListener('click', function(){
+    setSoundMuted(!muted);
+    if(!muted) playMarkSound(); // hear what you just turned back on
   });
-  settingsBtn.addEventListener('click', function(){
+
+  volumeSlider.addEventListener('input', function(){
+    setMasterVolume(parseInt(volumeSlider.value, 10) / 100);
+  });
+  // Preview on release rather than on every drag step, so dragging the slider
+  // doesn't machine-gun the tap sound.
+  volumeSlider.addEventListener('change', function(){
+    if(!muted && masterVolume > 0) playMarkSound();
+  });
+
+  resetLocalBtn.addEventListener('click', function(){
+    resetConfirmBox.hidden = false;
+    setSettingsStatus('');
+  });
+  cancelResetBtn.addEventListener('click', function(){ resetConfirmBox.hidden = true; });
+  confirmResetBtn.addEventListener('click', function(){
+    resetLocalProgress();
+    setSettingsStatus('Progress cleared. Reloading…');
+    setTimeout(function(){ location.reload(); }, 700);
+  });
+  profileBtn.addEventListener('click', function(){
     // Levels climbed since it was last opened may have unlocked more.
     renderSkinGrid();
     renderPawGrid();
-    settingsOverlay.hidden = false;
-    pushScreen('settings');
+    profileOverlay.hidden = false;
+    pushScreen('profile');
     // With 62 corgis, the sheet is a much longer scroll than the visible
     // window - land on whichever one is actually equipped instead of always
     // opening on the colour themes at the very top. A short defer, not a
@@ -3242,6 +3496,16 @@
       var selected = skinGridEl.querySelector('.skin-btn.selected');
       if(selected) selected.scrollIntoView({block:'center'});
     }, 0);
+  });
+  closeProfileBtn.addEventListener('click', function(){
+    if(history.state && history.state.s === 'profile') history.back();
+    else profileOverlay.hidden = true;
+  });
+
+  openSettingsBtn.addEventListener('click', function(){
+    renderSettingsSheet();
+    settingsOverlay.hidden = false;
+    pushScreen('settings');
   });
   closeSettingsBtn.addEventListener('click', function(){
     if(history.state && history.state.s === 'settings') history.back();
@@ -3256,6 +3520,9 @@
   applyCorgiSkin(savedSkin || CORGI_SKINS[0].id, false);
   applyPawMarker(savedPaw || PAW_MARKERS[0].id, false);
   updateMuteButton();
+  setMasterVolume(masterVolume, false);
+  renderProfileButton();
+  renderSettingsSheet();
   renderLevelCard();
   renderDailyCard();
   renderStatsGrid();

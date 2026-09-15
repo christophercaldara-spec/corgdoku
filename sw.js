@@ -1,6 +1,6 @@
 // Bump this on every deploy - old caches are dropped on activate, and it's
 // what forces a stale service worker to notice there's an update at all.
-var CACHE_NAME = 'corgdoku-v25';
+var CACHE_NAME = 'corgdoku-v26';
 var CORGI_IDS = [
   'classic','happy','wink','sleepy','blep','cream','fox','sable','tri','patch','shades','party',
   'crowned','batter','bookworm','gentleman','darling','frosty','lucky','smitten','dino','bandit',
@@ -14,6 +14,8 @@ var ASSETS = [
   './',
   './index.html',
   './manifest.json',
+  './privacy.html',
+  './terms.html',
   './icon-192.png',
   './icon-512.png',
   './icon-maskable-512.png',
