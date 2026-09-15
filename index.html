@@ -174,6 +174,21 @@
     font-size:.72rem; font-weight:700; color:var(--ink-muted);
   }
   .next-unlock b{ color:var(--accent); }
+  .account-blurb{ margin:.1rem 0 .55rem; font-size:.74rem; font-weight:700; color:var(--ink-muted); line-height:1.4; }
+  .account-who{ margin:.1rem 0 .5rem; font-size:.82rem; font-weight:700; }
+  .pack-code{ margin:.1rem 0 .5rem; font-size:.82rem; font-weight:700; }
+  .pack-code b{ font-family:var(--font-display); letter-spacing:.14em; color:var(--accent); }
+  .pack-list{ display:flex; flex-direction:column; gap:.35rem; margin-bottom:.55rem; }
+  .pack-member{
+    display:flex; align-items:center; gap:.5rem;
+    background:var(--surface); border:2px solid var(--surface-border);
+    border-radius:12px; padding:.35rem .55rem;
+  }
+  .pack-member.me{ border-color:var(--accent); }
+  .pack-member svg{ width:28px; height:28px; flex:none; }
+  .pack-who{ flex:1; text-align:left; font-size:.78rem; font-weight:800; line-height:1.2; }
+  .pack-who small{ display:block; font-size:.62rem; font-weight:700; color:var(--ink-muted); }
+  .pack-level{ font-size:.82rem; font-weight:800; color:var(--accent); font-variant-numeric:tabular-nums; }
 
   /* Studio ident. Fixed colours rather than theme ones - it's the same card
      every launch whatever style the player has picked. The fade-out is a CSS
@@ -756,6 +771,36 @@
     <p class="section-label backup-label">Your paw print</p>
     <div class="skin-grid" id="pawGrid"></div>
     <p id="pawHint" class="backup-status"></p>
+    <p class="section-label backup-label">Account</p>
+    <div id="accountBox">
+      <p class="account-blurb" id="accountBlurb">Sign in and your progress backs itself up. Nothing is
+        sent while you're signed out.</p>
+      <button type="button" id="signInBtn">Sign in with Google</button>
+      <div id="signedInBox" hidden>
+        <p class="account-who">Signed in as <b id="accountName">—</b></p>
+        <div class="backup-row">
+          <button type="button" id="syncBtn">Sync now</button>
+          <button type="button" id="signOutBtn">Sign out</button>
+        </div>
+        <p class="section-label backup-label">Your pack</p>
+        <div id="noPackBox">
+          <p class="account-blurb">Make a pack and share the code, or join one you've been given.</p>
+          <div class="backup-row">
+            <button type="button" id="createPackBtn">Create a pack</button>
+            <button type="button" id="joinPackBtn">Join with code</button>
+          </div>
+        </div>
+        <div id="inPackBox" hidden>
+          <p class="pack-code">Code: <b id="packCode">—</b></p>
+          <div class="pack-list" id="packList"></div>
+          <div class="backup-row">
+            <button type="button" id="refreshPackBtn">Refresh</button>
+            <button type="button" id="leavePackBtn">Leave pack</button>
+          </div>
+        </div>
+      </div>
+      <p id="accountStatus" class="backup-status"></p>
+    </div>
     <p class="section-label backup-label">Backup &amp; restore</p>
     <textarea id="backupBox" class="backup-box" rows="3" spellcheck="false"
       placeholder="Tap Copy progress to get a code. To move to a new phone, paste a code here and tap Restore."></textarea>
@@ -805,6 +850,21 @@
   var dailyBtn = document.getElementById('dailyBtn');
   var dailyStatusEl = document.getElementById('dailyStatus');
   var dailyDoneBtn = document.getElementById('dailyDoneBtn');
+  var signInBtn = document.getElementById('signInBtn');
+  var signOutBtn = document.getElementById('signOutBtn');
+  var syncBtn = document.getElementById('syncBtn');
+  var signedInBox = document.getElementById('signedInBox');
+  var accountBlurbEl = document.getElementById('accountBlurb');
+  var accountNameEl = document.getElementById('accountName');
+  var accountStatusEl = document.getElementById('accountStatus');
+  var noPackBox = document.getElementById('noPackBox');
+  var inPackBox = document.getElementById('inPackBox');
+  var packCodeEl = document.getElementById('packCode');
+  var packListEl = document.getElementById('packList');
+  var createPackBtn = document.getElementById('createPackBtn');
+  var joinPackBtn = document.getElementById('joinPackBtn');
+  var leavePackBtn = document.getElementById('leavePackBtn');
+  var refreshPackBtn = document.getElementById('refreshPackBtn');
   var backupBox = document.getElementById('backupBox');
   var exportBtn = document.getElementById('exportBtn');
   var importBtn = document.getElementById('importBtn');
@@ -1746,8 +1806,128 @@
     renderBoard();
   }
 
+  // ---------------------------------------------------------------------
+  // Accounts. All of this is optional and lazily loaded - see cloud.js. The
+  // phone stays the source of truth; signing in adds a mirror, it doesn't
+  // move the game onto a server. Nothing below is allowed to block play.
+  // ---------------------------------------------------------------------
+  var PACK_KEY = 'corgdoku_pack_v1';
+  var NAME_KEY = 'corgdoku_name_v1';
+  function readLocal(key){ try{ return localStorage.getItem(key); }catch(e){ return null; } }
+  function writeLocal(key, val){
+    try{ if(val === null || val === undefined) localStorage.removeItem(key); else localStorage.setItem(key, val); }catch(e){}
+  }
+
+  // The bridge cloud.js talks to. It only knows how to read the save and put
+  // one back - it has no idea what any of it means, which is what keeps the
+  // merge rules in here where the rest of the game's semantics live.
+  window.CorgdokuGame = {
+    snapshot: function(){
+      return {
+        level: loadLevelState().highest,
+        stats: loadStats(),
+        corgi: currentSkinId,
+        paw: currentPawId,
+        pack: readLocal(PACK_KEY),
+        name: readLocal(NAME_KEY)
+      };
+    },
+    apply: function(s){
+      if(!s) return;
+      if(typeof s.level === 'number' && s.level >= 1){
+        loadLevelState().highest = s.level;
+        saveLevelState();
+      }
+      if(s.stats){
+        var cur = loadStats();
+        Object.keys(s.stats).forEach(function(k){
+          if(k in cur && typeof s.stats[k] === 'number') cur[k] = s.stats[k];
+        });
+        saveStats();
+      }
+      writeLocal(PACK_KEY, s.pack || null);
+      if(s.name) writeLocal(NAME_KEY, s.name);
+      // Skins go through the normal path so a skin the level no longer
+      // justifies still falls back rather than blanking the board.
+      if(s.corgi) applyCorgiSkin(s.corgi, true);
+      if(s.paw) applyPawMarker(s.paw, true);
+      renderLevelCard();
+      renderStatsGrid();
+      renderSkinGrid();
+      renderPawGrid();
+    }
+  };
+
+  var cloudLoading = null;
+  function loadCloud(){
+    if(cloudLoading) return cloudLoading;
+    cloudLoading = new Promise(function(resolve, reject){
+      function add(src, next){
+        var el = document.createElement('script');
+        el.src = src;
+        el.onload = next;
+        el.onerror = function(){ reject(new Error('could not load ' + src)); };
+        document.head.appendChild(el);
+      }
+      add('firebase-config.js', function(){
+        add('cloud.js', function(){
+          if(!window.CorgdokuCloud) return reject(new Error('cloud.js did not register'));
+          window.CorgdokuCloud.onState(renderAccount);
+          window.CorgdokuCloud.start().then(function(){ resolve(window.CorgdokuCloud); }, reject);
+        });
+      });
+    });
+    cloudLoading.catch(function(){ cloudLoading = null; });
+    return cloudLoading;
+  }
+
+  function setAccountStatus(msg){ accountStatusEl.textContent = msg || ''; }
+
+  function renderAccount(st){
+    var signedIn = !!(st && st.signedIn);
+    signInBtn.hidden = signedIn;
+    signedInBox.hidden = !signedIn;
+    accountBlurbEl.hidden = signedIn;
+    if(!signedIn) return;
+    accountNameEl.textContent = readLocal(NAME_KEY) || st.name || 'Corgi fan';
+    var pack = readLocal(PACK_KEY);
+    noPackBox.hidden = !!pack;
+    inPackBox.hidden = !pack;
+    if(pack){
+      packCodeEl.textContent = pack;
+      refreshPack();
+    }
+  }
+
+  function refreshPack(){
+    var pack = readLocal(PACK_KEY);
+    if(!pack || !window.CorgdokuCloud) return;
+    window.CorgdokuCloud.readPack(pack).then(function(data){
+      packListEl.innerHTML = '';
+      if(!data){ setAccountStatus("Couldn't reach that pack."); return; }
+      data.members.forEach(function(m){
+        var row = document.createElement('div');
+        row.className = 'pack-member' + (m.isMe ? ' me' : '');
+        var art = corgiArt(skinById(m.corgi || 'classic'));
+        row.innerHTML =
+          '<svg viewBox="0 0 100 100" aria-hidden="true">' + art + '</svg>' +
+          '<span class="pack-who">' + escapeText(m.name || 'Corgi fan') +
+            '<small>' + (m.stats && m.stats.corgisFound ? m.stats.corgisFound + ' corgis found' : 'just getting started') + '</small></span>' +
+          '<span class="pack-level">Lv ' + (m.level || 1) + '</span>';
+        packListEl.appendChild(row);
+      });
+    });
+  }
+
+  // Names come from other people's Google accounts, so they're text, never markup.
+  function escapeText(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
   function backupKeys(){
-    return [STORAGE_KEY, STATS_KEY, LEVEL_KEY, SCHEME_KEY, MUTE_KEY, DAILY_KEY, SKIN_KEY, PAW_KEY];
+    return [STORAGE_KEY, STATS_KEY, LEVEL_KEY, SCHEME_KEY, MUTE_KEY, DAILY_KEY, SKIN_KEY, PAW_KEY, PACK_KEY, NAME_KEY];
   }
   function setBackupStatus(msg){ backupStatusEl.textContent = msg; }
 
@@ -2764,6 +2944,12 @@
     playWinSound();
     buzz([25, 60, 25]);
 
+    // Back up the win in the background. Fire and forget - a failed sync must
+    // never interrupt the celebration, and the next one will catch up anyway.
+    if(window.CorgdokuCloud && window.CorgdokuCloud.state().signedIn){
+      try{ window.CorgdokuCloud.sync(); }catch(e){}
+    }
+
     if(!prefersReducedMotion() && typeof confetti === 'function'){
       confetti({
         particleCount: 90,
@@ -2792,6 +2978,72 @@
   hintBtn.addEventListener('click', showHint);
   exportBtn.addEventListener('click', exportProgress);
   importBtn.addEventListener('click', importProgress);
+
+  signInBtn.addEventListener('click', function(){
+    setAccountStatus('Opening Google sign-in…');
+    loadCloud().then(function(cloud){
+      return cloud.signIn();
+    }).then(function(){
+      setAccountStatus('Signed in — your progress is backed up.');
+    }, function(err){
+      var code = err && err.code ? err.code : '';
+      setAccountStatus(code.indexOf('cancelled') >= 0 || code.indexOf('closed') >= 0
+        ? 'Sign-in cancelled.'
+        : "Couldn't sign in. Your progress is safe on this phone either way.");
+    });
+  });
+
+  signOutBtn.addEventListener('click', function(){
+    if(!window.CorgdokuCloud) return;
+    window.CorgdokuCloud.signOut().then(function(){
+      setAccountStatus('Signed out. Nothing leaves this phone now.');
+    });
+  });
+
+  syncBtn.addEventListener('click', function(){
+    if(!window.CorgdokuCloud) return;
+    setAccountStatus('Syncing…');
+    window.CorgdokuCloud.sync().then(function(res){
+      setAccountStatus(res ? 'Up to date.' : "Couldn't reach the server — try again later.");
+    });
+  });
+
+  createPackBtn.addEventListener('click', function(){
+    if(!window.CorgdokuCloud) return;
+    setAccountStatus('Making a pack…');
+    window.CorgdokuCloud.createPack('The Pack').then(function(code){
+      writeLocal(PACK_KEY, code);
+      renderAccount(window.CorgdokuCloud.state());
+      setAccountStatus('Pack created. Share the code: ' + code);
+    }, function(){ setAccountStatus("Couldn't create a pack just now."); });
+  });
+
+  joinPackBtn.addEventListener('click', function(){
+    if(!window.CorgdokuCloud) return;
+    var code = prompt('Enter the pack code:');
+    if(!code) return;
+    setAccountStatus('Looking for that pack…');
+    window.CorgdokuCloud.joinPack(code).then(function(joined){
+      writeLocal(PACK_KEY, joined);
+      renderAccount(window.CorgdokuCloud.state());
+      setAccountStatus('Joined!');
+    }, function(err){
+      setAccountStatus(err && err.message === 'no-such-pack'
+        ? "No pack with that code."
+        : "Couldn't join just now.");
+    });
+  });
+
+  leavePackBtn.addEventListener('click', function(){
+    if(!window.CorgdokuCloud) return;
+    window.CorgdokuCloud.leavePack().then(function(){
+      writeLocal(PACK_KEY, null);
+      renderAccount(window.CorgdokuCloud.state());
+      setAccountStatus('Left the pack.');
+    });
+  });
+
+  refreshPackBtn.addEventListener('click', refreshPack);
   muteBtn.addEventListener('click', function(){
     muted = !muted;
     try{ localStorage.setItem(MUTE_KEY, muted ? '1' : '0'); }catch(e){}
@@ -2821,6 +3073,15 @@
   renderLevelCard();
   renderDailyCard();
   renderStatsGrid();
+
+  // Someone who signed in before gets reconnected quietly on launch. Anyone
+  // else never fetches the SDK at all, so a signed-out install still makes
+  // zero third-party requests and works with no network.
+  if(window.CorgdokuCloud ? false : (function(){
+    try{ return localStorage.getItem('corgdoku_signedin') === '1'; }catch(e){ return false; }
+  })()){
+    loadCloud().catch(function(){});
+  }
 
   // The ident fades itself out in CSS, so it can't strand anyone if this
   // never runs. This just takes the node out afterwards and lets an impatient
