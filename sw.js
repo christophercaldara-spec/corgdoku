@@ -1,7 +1,14 @@
 // Bump this on every deploy - old caches are dropped on activate, and it's
 // what forces a stale service worker to notice there's an update at all.
-var CACHE_NAME = 'corgdoku-v19';
-var CORGI_IDS = ['classic','happy','wink','sleepy','blep','cream','fox','sable','tri','patch','shades','party'];
+var CACHE_NAME = 'corgdoku-v20';
+var CORGI_IDS = [
+  'classic','happy','wink','sleepy','blep','cream','fox','sable','tri','patch','shades','party',
+  'crowned','batter','bookworm','gentleman','darling','frosty','lucky','smitten','dino','bandit',
+  'beats','jolly','officer','topgun','blossom','astro','sheriff','buccaneer','retro','rudolph',
+  'monocle','merlin','serene','puddle','maverick','unicorn','rex','nerdy','boater','pirate',
+  'shark','royal','crush','chill','ranger','sherlock','dj','cadet','blitzen','captain',
+  'aviator','shady','witchy','clover','sweetheart','snowflake','rookie','angel','toughpup','cozy'
+];
 var PAW_IDS = ['chunky','slim','heart','tilted','walking','scratched','dainty','singlepad','outline','trail'];
 var ASSETS = [
   './',
