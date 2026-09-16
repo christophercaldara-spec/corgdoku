@@ -961,9 +961,9 @@
     <div id="resetConfirmBox" class="danger-box" hidden>
       <p>This clears your level, stats and collection on this phone. It can't be
         undone.</p>
-      <p class="danger-note" id="resetSignedInNote" hidden>You're signed in, so signing
-        in again would restore all of it from your backup. To remove that copy too,
-        use “Delete my backup &amp; account” above first.</p>
+      <p class="danger-note" id="resetSignedInNote" hidden>You're signed in, so this
+        backs up your current progress and signs you out first - your account
+        keeps everything exactly as it is now, and signing back in restores it.</p>
       <div class="backup-row">
         <button type="button" id="cancelResetBtn">Cancel</button>
         <button type="button" id="confirmResetBtn" class="danger">Reset it</button>
@@ -2213,9 +2213,9 @@
   }
 
   // Wipes everything this game owns on this device. Deliberately does NOT
-  // touch the cloud copy or sign anyone out - that's the separate, clearly
-  // labelled action above it, and quietly doing both from one button would be
-  // a nasty surprise. The confirm text says so when it's relevant.
+  // touch the cloud copy itself - the caller (confirmResetBtn below) handles
+  // backing up and signing out first when relevant, so by the time this runs
+  // there's nothing left that a stray auto-restore on reload could undo.
   function resetLocalProgress(){
     [STORAGE_KEY, STATS_KEY, LEVEL_KEY, DAILY_KEY, RESUME_KEY,
      SKIN_KEY, PAW_KEY, PACK_KEY, NAME_KEY].forEach(function(k){
@@ -2356,7 +2356,18 @@
   }
 
   document.addEventListener('visibilitychange', function(){
-    if(document.hidden) saveResume();
+    if(!document.hidden) return;
+    saveResume();
+    // Backgrounding is exactly the moment a debounced sync might never get
+    // another chance to fire - the tab can be suspended or killed before its
+    // 1.5s timer runs out. Flush it now instead of hoping the app stays open.
+    if(syncTimer){
+      clearTimeout(syncTimer);
+      syncTimer = null;
+      window.CorgdokuCloud.sync().then(function(res){
+        if(res){ syncPending = false; setSyncLine('Progress saved'); }
+      });
+    }
   });
 
   window.addEventListener('popstate', function(e){
@@ -3005,15 +3016,16 @@
     }
   }
 
-  // Every single tap waits this long before the paw actually appears, in
-  // case a second tap is on the way to upgrade it to a corgi - it's the one
-  // real cost of detecting double-taps ourselves instead of trusting the
-  // browser's own (unreliable on fast mobile taps - see below). Trimmed down
-  // from the original 280ms once the paw placement itself got the same pop
-  // animation as everything else, which helps mask what latency remains.
-  // A shorter window also means two accidental taps are less likely to be
-  // mistaken for a deliberate double-tap, so this is safe in that direction.
-  var CLICK_DELAY = 200;
+  // How long a second tap has to arrive before it's treated as an independent
+  // fresh tap rather than upgrading the first one to a corgi attempt. This
+  // used to be the delay a single tap waited before its paw even appeared,
+  // shrunk twice (280 -> 200ms) and still felt laggy - shrinking it further
+  // just trades that latency for double-taps starting to misfire, since real
+  // hands need SOME window. Restructured below instead: the paw now applies
+  // on the very first tap with no wait at all, so this number only affects
+  // how forgiving the double-tap upgrade is, not how fast marking feels. That
+  // freedom is why it's set more generously than the old delay ever was.
+  var CLICK_DELAY = 320;
 
   function prefersReducedMotion(){
     return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -3056,6 +3068,18 @@
   // caused single taps to occasionally register as a corgi placement. Doing
   // our own two-click-within-CLICK_DELAY check keeps both taps on the same
   // code path so timing is consistent everywhere.
+  //
+  // The first tap used to wait out the whole window before doing anything,
+  // in case a second tap was coming - that wait was the actual latency
+  // complaint. Now the first tap applies its paw immediately, and a second
+  // tap arriving inside the window upgrades that same cell to a corgi
+  // attempt instead (applyCorgiToggle doesn't care whether the cell it's
+  // asked to fix already holds a paw mark - it already had to handle a
+  // double-tap landing on a previously-marked cell). A deliberate fast
+  // double-tap now shows a paw for one frame before the corgi lands, rather
+  // than a delay before anything shows up at all - a trade worth making,
+  // since marking is the tap that happens constantly and placing is the one
+  // that happens once per region.
   function onCellClick(e){
     var cell = e.currentTarget;
     if(solved || failed) return;
@@ -3066,9 +3090,9 @@
       applyCorgiToggle(cell, e.clientX, e.clientY);
       return;
     }
+    applyPawToggle(cell);
     cell._clickTimer = setTimeout(function(){
       cell._clickTimer = null;
-      applyPawToggle(cell);
     }, CLICK_DELAY);
   }
 
@@ -3485,9 +3509,28 @@
   });
   cancelResetBtn.addEventListener('click', function(){ resetConfirmBox.hidden = true; });
   confirmResetBtn.addEventListener('click', function(){
-    resetLocalProgress();
-    setSettingsStatus('Progress cleared. Reloading…');
-    setTimeout(function(){ location.reload(); }, 700);
+    confirmResetBtn.disabled = true;
+    var signedIn = !!(window.CorgdokuCloud && window.CorgdokuCloud.state().signedIn);
+    var finish = function(){
+      resetLocalProgress();
+      setSettingsStatus('Progress cleared. Reloading…');
+      setTimeout(function(){ location.reload(); }, 700);
+    };
+    if(!signedIn){ finish(); return; }
+    // A reset that leaves the device signed in would just auto-restore from
+    // the cloud on the very next reload - not the fresh start the button
+    // promises, and exactly what happened here before this fix: a device
+    // whose latest climb hadn't fully synced up yet reset itself only to
+    // silently reappear at an older checkpoint. Pushing local truth up one
+    // last time, then actually signing out, makes the reset mean what it
+    // says while leaving the account's backup fully intact either way.
+    setSettingsStatus('Backing up before resetting…');
+    Promise.race([
+      window.CorgdokuCloud.sync(),
+      new Promise(function(res){ setTimeout(function(){ res(null); }, 4000); })
+    ]).then(function(){
+      return window.CorgdokuCloud.signOut().catch(function(){});
+    }).then(finish);
   });
   profileBtn.addEventListener('click', function(){
     // Levels climbed since it was last opened may have unlocked more.
