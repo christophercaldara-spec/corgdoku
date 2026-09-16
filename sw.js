@@ -1,6 +1,6 @@
 // Bump this on every deploy - old caches are dropped on activate, and it's
 // what forces a stale service worker to notice there's an update at all.
-var CACHE_NAME = 'corgdoku-v30';
+var CACHE_NAME = 'corgdoku-v31';
 var CORGI_IDS = [
   'classic','happy','wink','sleepy','blep','cream','fox','sable','tri','patch','shades','party',
   'crowned','batter','bookworm','gentleman','darling','frosty','lucky','smitten','dino','bandit',
@@ -10,6 +10,7 @@ var CORGI_IDS = [
   'aviator','shady','witchy','clover','sweetheart','snowflake','rookie','angel','toughpup','cozy'
 ];
 var PAW_IDS = ['chunky','slim','heart','tilted','walking','scratched','dainty','singlepad','outline','trail'];
+var DANCE_IDS = ['dance-1-stand','dance-2-pawsup','dance-3-hop','dance-4-sidelean','dance-5-spin','dance-6-backtostand'];
 var ASSETS = [
   './',
   './index.html',
@@ -19,13 +20,15 @@ var ASSETS = [
   './icon-192.png',
   './icon-512.png',
   './icon-maskable-512.png',
+  './art/mad-scientist-corgi.png',
   './vendor/fonts.css',
   './vendor/fonts/nunito.woff2',
   './vendor/fonts/quicksand.woff2',
   './vendor/confetti.browser.min.js'
 ]
   .concat(CORGI_IDS.map(function(id){ return './art/corgis/' + id + '.png'; }))
-  .concat(PAW_IDS.map(function(id){ return './art/paws/' + id + '.png'; }));
+  .concat(PAW_IDS.map(function(id){ return './art/paws/' + id + '.png'; }))
+  .concat(DANCE_IDS.map(function(id){ return './art/dance/' + id + '.png'; }));
 
 self.addEventListener('install', function(event){
   event.waitUntil(

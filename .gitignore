@@ -6,3 +6,8 @@ corgdoku-android.zip
 # is the actual shipped output - these are just how it was produced, multiple
 # MB of raw sheets that don't need to ride along in every clone).
 art-source/
+
+# Local dev-server config for previewing the app - machine-specific, not part
+# of the shipped game.
+.claude/
+

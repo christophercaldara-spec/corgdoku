@@ -270,7 +270,7 @@
     background:#123A32;
     animation:splashFade .5s ease 1.5s forwards;
   }
-  .splash-mark{ width:96px; height:96px; animation:splashMark .7s cubic-bezier(.2,.9,.3,1) both; }
+  .splash-mark{ width:112px; height:112px; display:block; object-fit:contain; animation:splashMark .7s cubic-bezier(.2,.9,.3,1) both; }
   .splash-studio{
     margin:0;
     text-align:center;
@@ -288,16 +288,8 @@
   @keyframes splashFade{ to{ opacity:0; visibility:hidden; } }
   @keyframes splashMark{ from{ transform:scale(.6) rotate(-8deg); opacity:0; } }
   @keyframes splashWord{ from{ transform:translateY(8px); opacity:0; } }
-  @keyframes bubbleUp{
-    0%{ transform:translateY(6px) scale(.7); opacity:0; }
-    35%{ opacity:.85; }
-    100%{ transform:translateY(-16px) scale(1.05); opacity:0; }
-  }
-  .splash-bubble{ animation:bubbleUp 1.6s ease-in-out infinite; transform-origin:center; }
-  .splash-bubble:nth-of-type(2){ animation-delay:.35s; }
-  .splash-bubble:nth-of-type(3){ animation-delay:.7s; }
   @media (prefers-reduced-motion: reduce){
-    .splash-mark, .splash-studio, .splash-bubble{ animation:none; }
+    .splash-mark, .splash-studio{ animation:none; }
   }
   .stats-grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:.75rem; }
   @media (min-width:520px){ .stats-grid{ grid-template-columns:repeat(4, 1fr); } }
@@ -653,37 +645,18 @@
     100%{ transform:scale(1) translateY(0); opacity:1; }
   }
   @media (prefers-reduced-motion: reduce){ .win-card{ animation:none; } }
-  .win-corgis{ display:flex; justify-content:center; gap:.55rem; margin:.1rem 0 .35rem; }
-  .win-corgi{
-    width:46px; height:46px; display:block;
-    transform-origin:50% 90%; /* pivot near the chin, so tilts read as a shimmy, not a wobbling head */
-    animation:winDance .9s ease-in-out infinite;
-  }
-  .win-corgi:nth-child(2){ animation-delay:.14s; }
-  .win-corgi:nth-child(3){ animation-delay:.28s; }
-  /* A sillier successor to the old plain hop - bounce, squash/stretch, tilt,
-     and a side-to-side shimmy stitched into one loop, on the same static
-     face art. No new art needed for this version; see the "next step" note
-     on the win-screen dance for what a real animated one would take. */
-  @keyframes winDance{
-    0%   { transform:translateY(0)     rotate(0deg)   scale(1, 1); }
-    10%  { transform:translateY(-16px) rotate(-14deg) scale(.94, 1.08); }
-    20%  { transform:translateY(0)     rotate(0deg)   scale(1.06, .95); }
-    30%  { transform:translateY(-9px)  rotate(12deg)  scale(.96, 1.05); }
-    40%  { transform:translateY(0)     rotate(0deg)   scale(1, 1); }
-    50%  { transform:translateX(-7px)  rotate(-7deg); }
-    60%  { transform:translateX(7px)   rotate(7deg); }
-    70%  { transform:translateY(-19px) rotate(-16deg) scale(.94, 1.08); }
-    85%  { transform:translateY(0)     rotate(9deg)   scale(1.05, .96); }
-    100% { transform:translateY(0)     rotate(0deg)   scale(1, 1); }
-  }
+  .win-corgis{ display:flex; justify-content:center; margin:.1rem 0 .35rem; }
+  /* A real 6-frame flipbook (see winDancerFrames in JS) replacing the old
+     transform-only bounce on a static face. One corgi, not tied to whichever
+     skin is equipped - same reasoning as the win sound and confetti being
+     universal: animating every one of the 62 skins was never going to happen. */
+  .win-dancer{ width:120px; height:120px; display:block; }
   @keyframes corgiHop{
     0%, 60%, 100%{ transform:translateY(0) rotate(0deg); }
     15%{ transform:translateY(-14px) rotate(-9deg); }
     30%{ transform:translateY(0) rotate(0deg); }
     42%{ transform:translateY(-6px) rotate(7deg); }
   }
-  @media (prefers-reduced-motion: reduce){ .win-corgi{ animation:none; } }
   .win-card h2{
     font-family:var(--font-display);
     color:var(--accent);
@@ -734,15 +707,7 @@
 <body>
 
 <div id="splash" class="splash">
-  <svg class="splash-mark" viewBox="0 0 100 100" aria-hidden="true">
-    <path d="M27,66 H73 L79,80 Q83,90 72,90 H28 Q17,90 21,80 Z" fill="#FF6F61"/>
-    <path d="M41,14 V36 L21,80 Q17,90 28,90 H72 Q83,90 79,80 L59,36 V14"
-          fill="none" stroke="#F6EFE2" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
-    <rect x="36" y="9" width="28" height="8" rx="4" fill="#F6EFE2"/>
-    <circle class="splash-bubble" cx="43" cy="58" r="4.5" fill="#F6EFE2"/>
-    <circle class="splash-bubble" cx="57" cy="50" r="3.2" fill="#F6EFE2"/>
-    <circle class="splash-bubble" cx="48" cy="44" r="2.4" fill="#F6EFE2"/>
-  </svg>
+  <img class="splash-mark" src="art/mad-scientist-corgi.png" alt="" aria-hidden="true">
   <p class="splash-studio">Gizmo's Laboratory<small>presents</small></p>
 </div>
 
@@ -848,9 +813,7 @@
     <h2>Good Herding! 🐾</h2>
     <p class="win-caption" id="winCaption"></p>
     <div class="win-corgis" aria-hidden="true">
-      <svg class="win-corgi"><use href="#icon-corgi"></use></svg>
-      <svg class="win-corgi"><use href="#icon-corgi"></use></svg>
-      <svg class="win-corgi"><use href="#icon-corgi"></use></svg>
+      <img id="winDancer" class="win-dancer" alt="">
     </div>
     <p class="big-time" id="winTime">0:00</p>
     <p id="winScore"></p>
@@ -1056,6 +1019,7 @@
   var winScoreEl = document.getElementById('winScore');
   var winBestEl = document.getElementById('winBest');
   var winCaptionEl = document.getElementById('winCaption');
+  var winDancerEl = document.getElementById('winDancer');
   var playAgainBtn = document.getElementById('playAgainBtn');
   var winHomeBtn = document.getElementById('winHomeBtn');
   var failOverlay = document.getElementById('failOverlay');
@@ -2104,6 +2068,7 @@
     updateMistakesDisplay();
     updateScoreDisplay();
     winOverlay.hidden = true;
+    stopWinDance();
     failOverlay.hidden = true;
     timerEl.textContent = formatTime(elapsedSec);
     restartTimer();
@@ -2338,6 +2303,7 @@
     settingsOverlay.hidden = true;
     gameScreen.hidden = true;
     winOverlay.hidden = true;
+    stopWinDance();
     failOverlay.hidden = true;
     homeScreen.hidden = false;
     renderLevelCard();
@@ -2864,6 +2830,7 @@
     updateMistakesDisplay();
     updateScoreDisplay();
     winOverlay.hidden = true;
+    stopWinDance();
     failOverlay.hidden = true;
     elapsedSec = 0;
     timerEl.textContent = '0:00';
@@ -3318,6 +3285,44 @@
     return VICTORY_CAPTIONS[idx];
   }
 
+  // ---------------------------------------------------------------------
+  // The win-screen dance: a real 6-frame flipbook, cycled by swapping <img
+  // src> rather than a CSS transform loop, since this is genuine full-body
+  // artwork rather than a face that can be faked into "dancing" with
+  // rotate/scale. One character, not sixty-two - same reasoning as the win
+  // sound and confetti being universal regardless of equipped skin.
+  // Explicitly started/stopped around the win overlay's own show/hide
+  // points rather than the hero-corgi's "tick and skip" pattern - there are
+  // only four of those, all clearly "the win screen is going away", so
+  // there's no reason to leave a 150ms timer running for the rest of the
+  // session just to skip its own ticks.
+  // ---------------------------------------------------------------------
+  var WIN_DANCE_FRAMES = [
+    'dance-1-stand', 'dance-2-pawsup', 'dance-3-hop',
+    'dance-4-sidelean', 'dance-5-spin', 'dance-6-backtostand'
+  ];
+  var winDanceTimer = null;
+
+  function startWinDance(){
+    if(!winDancerEl) return;
+    stopWinDance();
+    // A cycling flipbook is exactly the kind of motion this setting exists
+    // for - show one still, celebratory frame instead of looping it.
+    if(prefersReducedMotion()){
+      winDancerEl.src = 'art/dance/dance-2-pawsup.png';
+      return;
+    }
+    var idx = 0;
+    winDancerEl.src = 'art/dance/' + WIN_DANCE_FRAMES[0] + '.png';
+    winDanceTimer = setInterval(function(){
+      idx = (idx + 1) % WIN_DANCE_FRAMES.length;
+      winDancerEl.src = 'art/dance/' + WIN_DANCE_FRAMES[idx] + '.png';
+    }, 150);
+  }
+  function stopWinDance(){
+    if(winDanceTimer){ clearInterval(winDanceTimer); winDanceTimer = null; }
+  }
+
   function onSolved(){
     solved = true;
     clearHint();
@@ -3370,6 +3375,7 @@
     winScoreEl.textContent = 'Score: ' + score + (flawless ? ' (flawless +'+FLAWLESS_BONUS+'!)' : '');
     winBestEl.textContent = isNewBest ? 'New best score! 🎉' : ('Best: ' + best[n]);
     winOverlay.hidden = false;
+    startWinDance();
     playWinSound();
     buzz([25, 60, 25]);
 
