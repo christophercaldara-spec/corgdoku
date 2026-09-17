@@ -1,6 +1,6 @@
 // Bump this on every deploy - old caches are dropped on activate, and it's
 // what forces a stale service worker to notice there's an update at all.
-var CACHE_NAME = 'corgdoku-v31';
+var CACHE_NAME = 'corgdoku-v32';
 var CORGI_IDS = [
   'classic','happy','wink','sleepy','blep','cream','fox','sable','tri','patch','shades','party',
   'crowned','batter','bookworm','gentleman','darling','frosty','lucky','smitten','dino','bandit',
@@ -10,7 +10,8 @@ var CORGI_IDS = [
   'aviator','shady','witchy','clover','sweetheart','snowflake','rookie','angel','toughpup','cozy'
 ];
 var PAW_IDS = ['chunky','slim','heart','tilted','walking','scratched','dainty','singlepad','outline','trail'];
-var DANCE_IDS = ['dance-1-stand','dance-2-pawsup','dance-3-hop','dance-4-sidelean','dance-5-spin','dance-6-backtostand'];
+var DANCE_IDS = ['dance-1-stand','dance-2-pawsup','dance-3-hop','dance-4-sidelean','dance-5-spin','dance-6-backtostand',
+  'dance-7-shuffleleft','dance-8-shuffleright','dance-9-pawwave','dance-10-littlebow','dance-11-tongueout','dance-12-returntostand'];
 var ASSETS = [
   './',
   './index.html',
