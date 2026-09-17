@@ -763,7 +763,10 @@
   .win-caption{ margin:-.15rem 0 .4rem !important; font-style:italic; }
   .win-card .big-time{ font-size:1.3rem; color:var(--ink); font-variant-numeric:tabular-nums; }
   .win-card > button{ margin-top:1rem; width:100%; }
-  .backup-label{ margin-top:1.25rem; }
+  /* Scoped to .win-card on purpose: every one of these headings lives in a
+     sheet, and the sheet's own `.win-card p` margin outranks a lone class -
+     which had quietly squashed each section gap to 4px. */
+  .win-card .backup-label{ margin-top:1.25rem; }
   .sync-line{ margin:-.25rem 0 .5rem; font-size:.7rem; font-weight:700; color:var(--ink-muted); }
   .danger-box{
     border:2px solid var(--error);
@@ -944,9 +947,7 @@
 <div id="profileOverlay" class="win-overlay" hidden>
   <div class="win-card">
     <h2>Profile</h2>
-    <p class="section-label">Choose a style</p>
-    <div class="scheme-row" id="schemeRow"></div>
-    <p class="section-label backup-label">Your corgi</p>
+    <p class="section-label">Your corgi</p>
     <div class="skin-grid" id="skinGrid"></div>
     <p id="skinHint" class="backup-status"></p>
     <p class="section-label backup-label">Your paw print</p>
@@ -1000,6 +1001,9 @@
       <input type="range" id="volumeSlider" class="volume-slider" min="0" max="100" step="5"
              aria-label="Volume">
     </div>
+
+    <p class="section-label backup-label">Style</p>
+    <div class="scheme-row" id="schemeRow"></div>
 
     <p class="section-label backup-label">About</p>
     <div class="backup-row">
@@ -1700,9 +1704,9 @@
   var VOLUME_KEY = 'corgdoku_volume';
   var muted = false;
   try{ muted = localStorage.getItem(MUTE_KEY) === '1'; }catch(e){}
-  // Master volume, 0..1. Every sound in the game is built from the five
-  // helpers below, so scaling peakGain in each of them is the whole of it -
-  // there's no separate mixer to keep in sync.
+  // Master volume, 0..1. Applied at each sound's own gain node - the recorded
+  // ones in startSample, the one synthesised sound through vol() - so there's
+  // no separate mixer to keep in sync.
   var masterVolume = 1;
   try{
     var storedVol = parseFloat(localStorage.getItem(VOLUME_KEY));
@@ -1716,22 +1720,92 @@
       var AC = window.AudioContext || window.webkitAudioContext;
       if(!AC) return null;
       audioCtx = new AC();
+      decodeSamples(audioCtx);
     }
     if(audioCtx.state === 'suspended'){ audioCtx.resume(); }
     return audioCtx;
   }
 
-  function playTone(ctx, freq, startTime, duration, type, peakGain){
-    var osc = ctx.createOscillator();
+  // ---------------------------------------------------------------------
+  // Recorded sounds, decoded once and played through Web Audio rather than
+  // <audio> elements. On Android an <audio> element has a noticeable start-up
+  // lag that a paw tap can't afford, and it can't overlap itself when taps
+  // come quickly.
+  //
+  // Gains were set by measuring each file (its loudest 50ms), not by ear -
+  // the start bark came in about 8dB hotter than the rest, and the paw tap
+  // fires constantly, so it sits a touch under the others. This table is the
+  // one place to retune them after a listen.
+  // ---------------------------------------------------------------------
+  var SAMPLES = {
+    start: {src:'sounds/start.mp3', gain:0.32},
+    paw:   {src:'sounds/paw.mp3',   gain:0.55},
+    corgi: {src:'sounds/corgi.mp3', gain:0.85},
+    win:   {src:'sounds/win.mp3',   gain:1.15},
+    fail:  {src:'sounds/fail.mp3',  gain:0.75}
+  };
+
+  // Browsers won't allow an audio context until the player has touched
+  // something, so decoding waits for that. It's kicked off on the very first
+  // touch (below) so the buffers are ready by the time that touch becomes a
+  // tap that actually makes a sound.
+  function decodeSamples(ctx){
+    Object.keys(SAMPLES).forEach(function(k){
+      var s = SAMPLES[k];
+      if(s.ready) return;
+      s.ready = fetch(s.src)
+        .then(function(r){ return r.ok ? r.arrayBuffer() : null; })
+        .then(function(bytes){
+          if(!bytes) return null;
+          // The callback form, because older WebViews never grew the promise one.
+          return new Promise(function(done){
+            ctx.decodeAudioData(bytes, done, function(){ done(null); });
+          });
+        })
+        .then(function(buf){
+          if(buf){ s.buffer = buf; s.offset = audibleStart(buf); }
+        })
+        .catch(function(){});
+    });
+  }
+
+  // The files open with dead air - 127ms of it before the paw tap, which by
+  // itself would undo all the work that went into making a tap feel instant.
+  // Playback starts just ahead of the first audible sample instead.
+  function audibleStart(buf){
+    var first = buf.length;
+    for(var ch = 0; ch < buf.numberOfChannels; ch++){
+      var data = buf.getChannelData(ch);
+      for(var i = 0; i < first; i++){
+        if(data[i] > 0.01 || data[i] < -0.01){ first = i; break; }
+      }
+    }
+    if(first >= buf.length) return 0;
+    return Math.max(0, first / buf.sampleRate - 0.004);
+  }
+
+  function playSample(name, rate){
+    if(muted) return;
+    var ctx = getAudioCtx();
+    if(!ctx) return;
+    var s = SAMPLES[name];
+    if(s.buffer){ startSample(ctx, s, rate); return; }
+    // Only the very first sounds of a session can land here. Play once it's
+    // decoded, unless that would be late enough to feel detached from the tap.
+    var asked = Date.now();
+    s.ready.then(function(){
+      if(s.buffer && !muted && Date.now() - asked < 350) startSample(ctx, s, rate);
+    });
+  }
+
+  function startSample(ctx, s, rate){
+    var src = ctx.createBufferSource();
+    src.buffer = s.buffer;
+    if(rate) src.playbackRate.value = rate;
     var gain = ctx.createGain();
-    osc.type = type;
-    osc.frequency.value = freq;
-    gain.gain.setValueAtTime(0.0001, startTime);
-    gain.gain.linearRampToValueAtTime(vol(peakGain), startTime + 0.015);
-    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(startTime);
-    osc.stop(startTime + duration + 0.02);
+    gain.gain.value = s.gain * masterVolume;
+    src.connect(gain).connect(ctx.destination);
+    src.start(ctx.currentTime, s.offset);
   }
 
   function playToneSweep(ctx, freqStart, freqEnd, startTime, duration, type, peakGain){
@@ -1748,68 +1822,15 @@
     osc.stop(startTime + duration + 0.02);
   }
 
-  // Same as playTone but through a lowpass, which is what rounds off the
-  // harsh edge of a raw oscillator.
-  function playFilteredTone(ctx, freq, startTime, duration, type, peakGain, cutoff, q){
-    var osc = ctx.createOscillator();
-    var gain = ctx.createGain();
-    var filter = ctx.createBiquadFilter();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, startTime);
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(cutoff, startTime);
-    filter.Q.value = q || 0.8;
-    gain.gain.setValueAtTime(0.0001, startTime);
-    gain.gain.linearRampToValueAtTime(vol(peakGain), startTime + 0.012);
-    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
-    osc.connect(gain).connect(filter).connect(ctx.destination);
-    osc.start(startTime);
-    osc.stop(startTime + duration + 0.03);
-  }
-
-  // A soft plucked note: a filtered body plus a quieter detuned partner, which
-  // reads as an instrument rather than a beep.
-  function playPluck(ctx, freq, startTime, duration, peakGain){
-    playFilteredTone(ctx, freq, startTime, duration, 'triangle', peakGain, freq * 4, 0.8);
-    playTone(ctx, freq * 1.005, startTime, duration * 0.9, 'sine', peakGain * 0.5);
-  }
-
-  // Filtered noise - pitchless, percussive; used for the tap tick.
-  function playNoiseBurst(ctx, startTime, duration, f0, f1, peakGain, filterType, q){
-    var len = Math.max(1, Math.floor(ctx.sampleRate * duration));
-    var buffer = ctx.createBuffer(1, len, ctx.sampleRate);
-    var data = buffer.getChannelData(0);
-    for(var i=0;i<len;i++) data[i] = Math.random()*2 - 1;
-    var src = ctx.createBufferSource();
-    src.buffer = buffer;
-    var filter = ctx.createBiquadFilter();
-    filter.type = filterType || 'bandpass';
-    filter.Q.value = q || 1;
-    filter.frequency.setValueAtTime(f0, startTime);
-    filter.frequency.exponentialRampToValueAtTime(Math.max(f1, 1), startTime + duration);
-    var gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.0001, startTime);
-    gain.gain.linearRampToValueAtTime(vol(peakGain), startTime + 0.006);
-    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
-    src.connect(filter).connect(gain).connect(ctx.destination);
-    src.start(startTime);
-    src.stop(startTime + duration + 0.03);
-  }
-
-  // Each step of a combo lifts the pitch, so a streak audibly climbs.
+  // Each step of a combo lifts the pitch, so a streak audibly climbs - a
+  // semitone a step rather than the old synth's whole tone, because pitching
+  // a real recording that far turns it into a chipmunk by the fourth find.
   function playFindSound(combo){
-    if(muted) return;
-    var ctx = getAudioCtx();
-    if(!ctx) return;
     var step = Math.min(Math.max((combo||1) - 1, 0), COMBO_MAX_STEPS);
-    var lift = Math.pow(1.12, step);
-    var t = ctx.currentTime;
-    // Warm arpeggio - a rolled major chord, still pitched up by the combo.
-    playPluck(ctx, 523.25*lift, t, 0.20, 0.09);
-    playPluck(ctx, 659.25*lift, t + 0.055, 0.20, 0.09);
-    playPluck(ctx, 783.99*lift, t + 0.11, 0.28, 0.10);
+    playSample('corgi', Math.pow(1.06, step));
   }
 
+  // Still synthesised - there's no recording for a wrong guess.
   function playMistakeSound(){
     if(muted) return;
     var ctx = getAudioCtx();
@@ -1817,36 +1838,19 @@
     playToneSweep(ctx, 420, 170, ctx.currentTime, 0.22, 'triangle', 0.14);
   }
 
-  function playMarkSound(){
-    if(muted) return;
-    var ctx = getAudioCtx();
-    if(!ctx) return;
-    // Dry wooden tick: pitchless, so hearing it hundreds of times doesn't grate.
-    playNoiseBurst(ctx, ctx.currentTime, 0.035, 2600, 900, 0.16, 'bandpass', 1.6);
-  }
+  function playMarkSound(){ playSample('paw'); }
+  function playWinSound(){ playSample('win'); }
+  function playLevelStartSound(){ playSample('start'); }
+  function playFailSound(){ playSample('fail'); }
 
-  function playWinSound(){
-    if(muted) return;
-    var ctx = getAudioCtx();
-    if(!ctx) return;
-    var t = ctx.currentTime;
-    var roll = [523.25, 659.25, 783.99, 1046.5];
-    roll.forEach(function(f, i){ playPluck(ctx, f, t + i*0.085, 0.4, 0.10); });
-    // the same chord left ringing underneath the roll
-    roll.forEach(function(f, i){ playTone(ctx, f, t + 0.38 + i*0.005, 0.9, 'sine', 0.045); });
-  }
-
-  // Plays on the tap that starts a level, which also doubles as the user
-  // gesture that unlocks the audio context for the rest of the round.
-  function playLevelStartSound(){
-    if(muted) return;
-    var ctx = getAudioCtx();
-    if(!ctx) return;
-    var t = ctx.currentTime;
-    playTone(ctx, 523.25, t, 0.10, 'triangle', 0.13);
-    playTone(ctx, 659.25, t + 0.075, 0.10, 'triangle', 0.13);
-    playTone(ctx, 783.99, t + 0.15, 0.18, 'triangle', 0.15);
-  }
+  // Start decoding on the first touch anywhere. On a phone, touching down
+  // doesn't yet count as permission to PLAY sound - the tap it turns into
+  // does - but creating a context and decoding don't need permission, and
+  // doing them now means the first tap's sound is ready rather than dropped.
+  document.addEventListener('pointerdown', function warmAudio(){
+    document.removeEventListener('pointerdown', warmAudio, true);
+    if(!muted) getAudioCtx();
+  }, true);
 
   // Short haptic pulse where the phone supports it. Tied to the same mute
   // toggle as audio so there's one "quiet please" switch rather than two.
@@ -3581,7 +3585,9 @@
       score += pts;
       updateScoreDisplay();
       showFloatingPoints(cell, pts, comboCount);
-      playFindSound(comboCount);
+      // The last corgi IS the win, and the win has its own sound - starting
+      // both on the same instant just muddies the one that matters.
+      if(corgisOnBoard() < n) playFindSound(comboCount);
       buzz(18);
       loadStats().corgisFound++;
       saveStats();
@@ -3590,6 +3596,14 @@
     } else {
       flashMistake(cell);
     }
+  }
+
+  function corgisOnBoard(){
+    var count = 0;
+    for(var r = 0; r < n; r++){
+      for(var c = 0; c < n; c++){ if(board[r][c] === 2) count++; }
+    }
+    return count;
   }
 
   // syncCellVisuals only swaps the icon inside .icon-wrap, so the wrapper
@@ -3610,7 +3624,8 @@
     score = Math.max(0, score - MISTAKE_PENALTY);
     updateMistakesDisplay(true);
     updateScoreDisplay();
-    playMistakeSound();
+    // Same as the last corgi: the last paw going is the fail, which has its own.
+    if(mistakes < MAX_MISTAKES) playMistakeSound();
     buzz(45);
 
     var r = parseInt(cell.dataset.r,10), c = parseInt(cell.dataset.c,10);
@@ -3652,6 +3667,7 @@
     if(timerHandle) clearInterval(timerHandle);
     failScoreEl.textContent = 'Score: ' + score + ' — try again!';
     failOverlay.hidden = false;
+    playFailSound();
 
     var stats = loadStats();
     stats.runs++;
@@ -4032,8 +4048,8 @@
     pushScreen('profile');
     // With 62 corgis, the sheet is a much longer scroll than the visible
     // window - land on whichever one is actually equipped instead of always
-    // opening on the colour themes at the very top. A short defer, not a
-    // rAF, so it still runs even if the tab isn't actively rendering.
+    // opening at the very top. A short defer, not a rAF, so it still runs
+    // even if the tab isn't actively rendering.
     setTimeout(function(){
       var selected = skinGridEl.querySelector('.skin-btn.selected');
       if(selected) selected.scrollIntoView({block:'center'});
