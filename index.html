@@ -38,8 +38,16 @@
     --elevation-2:0 2px 4px rgba(30,20,10,.18), 0 6px 14px rgba(30,20,10,.14);
     --elevation-3:0 4px 10px rgba(30,20,10,.20), 0 10px 26px rgba(30,20,10,.16);
 
-    --pack-0:#3ECCA8;
-    --pack-1:#8ED4EB;
+    --pack-0:#00A38D;
+    --pack-1:#81EB8C;
+    --pack-2:#00E0FF;
+    --pack-3:#8E991A;
+    --pack-4:#FFCD5E;
+    --pack-5:#0098F5;
+    --pack-6:#D57933;
+    --pack-7:#9C7FEB;
+    --pack-8:#F35E73;
+    --pack-9:#FFB3E9;
     --pack-2:#3E61CC;
     --pack-3:#A58EEB;
     --pack-4:#A83ECC;
@@ -1162,47 +1170,78 @@
   var DEFAULT_SCHEME = 'mint';
   var currentScheme = DEFAULT_SCHEME;
 
+  // Region ids run 0..size-1 and boards stop at 10x10, so ten colours is the
+  // whole palette - there is no eleventh yard to paint. Keeping the count
+  // honest matters because the palettes are built by maximising the smallest
+  // perceptual gap between them, and every extra colour crowds the rest.
+  var REGION_COLORS = 10;
+
   var SCHEMES = {
     cozy: { label:"Countryside Cozy", dark:false,
       bgTop:"#F7F0E3", bgBottom:"#DCE8D0", surface:"#FFFDF8", surfaceBorder:"#E6D8C2",
       ink:"#33261C", inkMuted:"#7A6A5A", accent:"#C9793A", accentHover:"#B5652C", accentInk:"#FFFBF5",
       frame:"#2F4A3C", badge:"rgba(255,251,245,.9)", pawInk:"#33261C", ripple:"rgba(255,255,255,.45)",
-      regions:["#36B575","#80E5E5","#3675B5","#8080E5","#7536B5","#E580E5","#B53675","#E58080","#B57536","#E5E580","#75B536","#80E580"] },
+      regions:["#FFB95A","#DF6940","#958F0D","#A3E375","#E95691","#00A072","#F6C0F6","#917BE7","#00E8F8","#0095D9"] },
     material: { label:"Material Bright", dark:false,
       bgTop:"#FFFFFF", bgBottom:"#EDF1F5", surface:"#FFFFFF", surfaceBorder:"#DCE3EA",
       ink:"#16202A", inkMuted:"#5C6B78", accent:"#3D5AFE", accentHover:"#2A42D6", accentInk:"#FFFFFF",
       frame:"#16202A", badge:"rgba(255,255,255,.92)", pawInk:"#16202A", ripple:"rgba(255,255,255,.5)",
-      regions:["#DD4040","#DCA36A","#DDDD40","#A3DC6A","#40DD40","#6ADCA3","#40DDDD","#6AA3DC","#4040DD","#A36ADC","#DD40DD","#DC6AA3"] },
+      regions:["#06E984","#FFC129","#F43159","#AC5DE0","#CE6400","#7A8900","#0086EA","#00DFFF","#FFB2DF","#1D9182"] },
     evening: { label:"Evening Den", dark:true,
       bgTop:"#141A1C", bgBottom:"#0A0E10", surface:"#1E2629", surfaceBorder:"#33403F",
       ink:"#EDE7DC", inkMuted:"#A79E90", accent:"#F2A65A", accentHover:"#F5B67A", accentInk:"#241505",
       frame:"#05080A", badge:"rgba(10,10,10,.8)", pawInk:"#EDE7DC", ripple:"rgba(255,255,255,.18)",
-      regions:["#3D7B71","#5BA0C2","#3D477B","#7E5BC2","#713D7B","#C25BA0","#7B3D47","#C27E5B","#7B713D","#A0C25B","#477B3D","#5BC27E"] },
+      regions:["#914C1D","#BA9644","#EA7A78","#52660B","#9A3B75","#38AE7E","#B08ADD","#006B69","#2A5EAA","#00A6E3"] },
     pastel: { label:"Pastel Picnic", dark:false,
       bgTop:"#FFF7F0", bgBottom:"#FDECEA", surface:"#FFFFFF", surfaceBorder:"#F3DAD6",
       ink:"#5B4A45", inkMuted:"#9A8983", accent:"#E4607A", accentHover:"#D14D68", accentInk:"#FFFFFF",
       frame:"#8FBFA3", badge:"rgba(255,255,255,.92)", pawInk:"#5B4A45", ripple:"rgba(255,255,255,.5)",
-      regions:["#8DD3C7","#FFFFB3","#B19CE0","#FB8072","#80B1D3","#FDB462","#B3DE69","#F5C39A","#E8E8E8","#E0A3C9","#CCEBC5","#FFED6F"] },
+      regions:["#FFACAD","#9DBAFF","#C77759","#9580C7","#9F8A41","#F3B6FA","#30D7FF","#F3B47A","#0A95D3","#CC6D93"] },
     autumn: { label:"Autumn Harvest", dark:false,
       bgTop:"#F6E3C5", bgBottom:"#E8B589", surface:"#FFF8ED", surfaceBorder:"#E7C89C",
       ink:"#4A2C1D", inkMuted:"#8A6A52", accent:"#D9642C", accentHover:"#C2531F", accentInk:"#FFF8ED",
       frame:"#5C3A21", badge:"rgba(255,248,237,.92)", pawInk:"#4A2C1D", ripple:"rgba(255,255,255,.4)",
-      regions:["#B44F2D","#715C1E","#92B42D","#33711E","#2DB44F","#1E715C","#2D92B4","#1E3371","#4F2DB4","#5C1E71","#B42D92","#711E33"] },
+      regions:["#F87342","#BC003C","#BC9600","#F664C5","#455C24","#7E2FA1","#35B149","#7396FF","#005B90","#00ABB5"] },
     mint: { label:"Fresh Mint & Coral", dark:false,
       bgTop:"#F3FBF8", bgBottom:"#E3F5EE", surface:"#FFFFFF", surfaceBorder:"#D6ECE5",
       ink:"#1F3B36", inkMuted:"#5E7B75", accent:"#FF6F61", accentHover:"#E85A4D", accentInk:"#FFFFFF",
       frame:"#12332C", badge:"rgba(255,255,255,.92)", pawInk:"#1F3B36", ripple:"rgba(255,255,255,.45)",
-      regions:["#3ECCA8","#8ED4EB","#3E61CC","#A58EEB","#A83ECC","#EB8ED4","#CC3E61","#EBA58E","#CCA83E","#D4EB8E","#61CC3E","#8EEBA5"] },
+      regions:["#00A38D","#81EB8C","#00E0FF","#8E991A","#FFCD5E","#0098F5","#D57933","#9C7FEB","#F35E73","#FFB3E9"] },
     retro: { label:"Retro Arcade", dark:false,
       bgTop:"#FFF3D6", bgBottom:"#FFE0B2", surface:"#FFFFFF", surfaceBorder:"#1A1A1A",
       ink:"#1A1A1A", inkMuted:"#5A5142", accent:"#FF3B3B", accentHover:"#E62E2E", accentInk:"#FFFFFF",
       frame:"#1A1A1A", badge:"rgba(255,255,255,.95)", pawInk:"#1A1A1A", ripple:"rgba(255,255,255,.5)",
-      regions:["#E63746","#E2935A","#E6D837","#A9E25A","#46E637","#5AE293","#37E6D8","#5AA9E2","#3746E6","#935AE2","#D837E6","#E25AA9"] },
+      regions:["#9561FB","#E84C00","#98E030","#FF0072","#938200","#0094EC","#FFBE76","#009468","#00E1EB","#FFB3F4"] },
     slate: { label:"Slate & Gold", dark:true,
       bgTop:"#232B33", bgBottom:"#1A2027", surface:"#2C363F", surfaceBorder:"#3E4A54",
       ink:"#E9E4D8", inkMuted:"#A9A18F", accent:"#C9A24B", accentHover:"#D9B463", accentInk:"#20180A",
       frame:"#12171B", badge:"rgba(18,23,27,.85)", pawInk:"#E9E4D8", ripple:"rgba(255,255,255,.15)",
-      regions:["#446B7E","#6776C1","#57447E","#B267C1","#7E446B","#C16776","#7E5744","#C1B267","#6B7E44","#76C167","#447E6B","#67C1B2"] }
+      regions:["#C7984F","#656811","#9B4E2B","#62B172","#EE7F8A","#007067","#924887","#A695E6","#00AFD6","#1965AE"] },
+    midnight: { label:"Midnight Meadow", dark:true,
+      bgTop:"#121D2B", bgBottom:"#0A1320", surface:"#1A2637", surfaceBorder:"#2E3D52",
+      ink:"#E6ECF5", inkMuted:"#98A6BC", accent:"#6FB1FF", accentHover:"#8CC2FF", accentInk:"#06192E",
+      frame:"#070C15", badge:"rgba(11,18,32,.84)", pawInk:"#E6ECF5", ripple:"rgba(255,255,255,.16)",
+      regions:["#00A9F7","#006F6F","#3661B3","#BC8DE2","#61B169","#A83B6E","#606905","#F27D79","#C69946","#9A4F1F"] },
+    ember: { label:"Campfire Ember", dark:true,
+      bgTop:"#1E1613", bgBottom:"#130D0A", surface:"#281E19", surfaceBorder:"#423128",
+      ink:"#F4E8DE", inkMuted:"#B49C8A", accent:"#FF8A4C", accentHover:"#FFA269", accentInk:"#2B1206",
+      frame:"#0D0806", badge:"rgba(20,13,10,.84)", pawInk:"#F4E8DE", ripple:"rgba(255,255,255,.15)",
+      regions:["#9E431D","#F3727B","#C7913C","#5D6300","#9E367D","#B089E6","#49AE67","#105DB4","#006B64","#00A8DC"] },
+    harbor: { label:"Harbor Lights", dark:true,
+      bgTop:"#15252A", bgBottom:"#0D1A1E", surface:"#1E2F35", surfaceBorder:"#344952",
+      ink:"#E5EFF2", inkMuted:"#9AAFB7", accent:"#4FC3E8", accentHover:"#70D2F0", accentInk:"#04242F",
+      frame:"#081012", badge:"rgba(12,22,24,.84)", pawInk:"#E5EFF2", ripple:"rgba(255,255,255,.16)",
+      regions:["#00B6CD","#007760","#006DAF","#82B365","#9A9FF1","#726A15","#8E5296","#D59A59","#F3839D","#A64F39"] },
+    // Built for deuteranopia rather than for looks: the themed palettes
+    // above are tuned purely for normal vision, which buys them a much
+    // wider perceptual spread but leaves some pairs near-identical to a
+    // colour-blind player. This one trades some of that spread to keep
+    // every pair separable both ways.
+    clear: { label:"Color-Safe", dark:false,
+      bgTop:"#F7FAFC", bgBottom:"#E8EEF3", surface:"#FFFFFF", surfaceBorder:"#D3DDE5",
+      ink:"#10202B", inkMuted:"#55697A", accent:"#0B6FD1", accentHover:"#0959AA", accentInk:"#FFFFFF",
+      frame:"#1B2A33", badge:"rgba(255,255,255,.94)", pawInk:"#10202B", ripple:"rgba(255,255,255,.5)",
+      regions:["#F7D55D","#C68820","#E460AB","#226CCC","#597705","#02A8FF","#66EEBF","#FFB8FF","#127A74","#A47C73"] }
   };
 
   function applyScheme(key){
@@ -1230,7 +1269,7 @@
     root.setProperty('--elevation-1', '0 1px 2px rgba('+sc+','+a1[0]+'), 0 1px 3px rgba('+sc+','+a1[1]+')');
     root.setProperty('--elevation-2', '0 2px 4px rgba('+sc+','+a2[0]+'), 0 6px 14px rgba('+sc+','+a2[1]+')');
     root.setProperty('--elevation-3', '0 4px 10px rgba('+sc+','+a3[0]+'), 0 10px 26px rgba('+sc+','+a3[1]+')');
-    for(var i=0;i<12;i++){ root.setProperty('--pack-'+i, scheme.regions[i]); }
+    for(var i=0;i<REGION_COLORS;i++){ root.setProperty('--pack-'+i, scheme.regions[i]); }
     try{ localStorage.setItem(SCHEME_KEY, s); }catch(e){}
     renderSchemeRow();
   }
@@ -2893,7 +2932,7 @@
         cell.type = 'button';
         cell.className = 'cell';
         cell.dataset.r = r; cell.dataset.c = c;
-        cell.style.setProperty('--cell-color', 'var(--pack-' + (regions[r][c] % 12) + ')');
+        cell.style.setProperty('--cell-color', 'var(--pack-' + (regions[r][c] % REGION_COLORS) + ')');
         // Diagonal sweep from the bottom-left corner up to the top-right, so
         // the board arrives along one travelling wavefront rather than all at
         // once. Distance from bottom-left = how far up (n-1-r) plus how far

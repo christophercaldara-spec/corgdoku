@@ -11,3 +11,7 @@ art-source/
 # of the shipped game.
 .claude/
 
+# Intermediates from tools/palette.py - the generated palettes live in
+# index.html, these are just the scratch on the way there.
+tools/_*
+
