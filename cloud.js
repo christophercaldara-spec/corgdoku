@@ -46,7 +46,13 @@
       M = {a: mods[0], auth: mods[1], fs: mods[2]};
       app  = M.a.initializeApp(window.CORGDOKU_FIREBASE);
       auth = M.auth.getAuth(app);
-      db   = M.fs.getFirestore(app);
+      // Firestore throws on any undefined field value, and syncNow swallows
+      // errors by design (offline is normal). Together that means one stray
+      // undefined anywhere in a snapshot would silently stop every upload -
+      // level progress included - while the phone kept saying it would back
+      // up later. Dropping undefined fields instead makes that failure
+      // impossible rather than merely unlikely.
+      db   = M.fs.initializeFirestore(app, {ignoreUndefinedProperties: true});
       M.auth.onAuthStateChanged(auth, function(u){
         user = u || null;
         try{
@@ -73,12 +79,60 @@
   // -------------------------------------------------------------------------
   var LOWER_IS_BETTER = {fastestWin: true};
 
+  function num(v){ return typeof v === 'number' ? v : null; }
+  function better(x, y, fn){
+    var a = num(x), b = num(y);
+    if(a === null) return b;
+    if(b === null) return a;
+    return fn(a, b);
+  }
+  // Records written before daily results were tracked properly carry only a
+  // time and a score - and they were only ever written on a solve.
+  function wasSolved(r){ return !!(r && (r.solved || typeof r.time === 'number')); }
+
+  // Daily results merge per date and never regress, same as everything else.
+  // The exception is the first solve: that's what the herd is ranked on, so it
+  // has to be the solve that genuinely came FIRST, not the fastest one - or
+  // replaying a board you've already cracked would buy a better placing.
+  function mergeDaily(a, b){
+    a = a || {}; b = b || {};
+    var out = {};
+    Object.keys(a).concat(Object.keys(b)).forEach(function(date){
+      if(out[date]) return;
+      // Every record goes through the same path, even one that only exists
+      // on one side - otherwise its shape would depend on whether the other
+      // phone happened to have that date, and each sync would rewrite it.
+      var x = a[date] || {}, y = b[date] || {};
+      var r = {
+        fails: better(x.fails, y.fails, Math.max) || 0,
+        solved: wasSolved(x) || wasSolved(y)
+      };
+      var t = better(x.time, y.time, Math.min);
+      var s = better(x.score, y.score, Math.max);
+      if(t !== null) r.time = t;
+      if(s !== null) r.score = s;
+      var first = null;
+      if(wasSolved(x) && wasSolved(y)) first = (x.at || 0) <= (y.at || 0) ? x : y;
+      else if(wasSolved(x)) first = x;
+      else if(wasSolved(y)) first = y;
+      if(first){
+        if(num(first.first) !== null) r.first = first.first;
+        if(num(first.tries) !== null) r.tries = first.tries;
+        if(num(first.board) !== null) r.board = first.board;
+        if(num(first.at) !== null) r.at = first.at;
+      }
+      out[date] = r;
+    });
+    return out;
+  }
+
   function mergeSnapshots(a, b){
     if(!a) return b;
     if(!b) return a;
     var out = {
       level: Math.max(a.level || 1, b.level || 1),
       stats: {},
+      daily: mergeDaily(a.daily, b.daily),
       corgi: b.corgi || a.corgi,
       paw: b.paw || a.paw,
       name: b.name || a.name,
@@ -121,14 +175,21 @@
   // the whole pack costs one read instead of one per person.
   function pushToPack(snap){
     if(!user || !snap || !snap.pack) return Promise.resolve();
-    var entry = {};
-    entry['members.' + user.uid] = {
+    var member = {
       name: snap.name || (user.displayName || 'Corgi fan'),
       level: snap.level || 1,
       stats: snap.stats || {},
       corgi: snap.corgi || 'classic',
       updatedAt: Date.now()
     };
+    // Only the latest daily goes to the herd, not the whole history - it's
+    // what the herd compares, and the game owns the streak logic, so it
+    // summarises rather than this file second-guessing it.
+    var game = window.CorgdokuGame;
+    var daily = game && game.dailySummary ? game.dailySummary() : null;
+    if(daily) member.daily = daily;
+    var entry = {};
+    entry['members.' + user.uid] = member;
     return M.fs.updateDoc(packDoc(snap.pack), entry).catch(function(){});
   }
 

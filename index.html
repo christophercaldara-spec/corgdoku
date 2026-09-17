@@ -85,8 +85,7 @@
   /* ---------- Hero ---------- */
   .hero{ text-align:center; position:relative; }
   /* The header's two corners: your corgi on the left as a profile avatar,
-     a plain cog on the right. Both circles the same size so the title sits
-     evenly between them, but the cog is deliberately quieter - muted border,
+     a plain cog on the right. The cog is deliberately quieter - muted border,
      no accent ring - so the avatar stays the one that draws the eye. */
   .profile-fab, .settings-fab{
     position:absolute; top:-2px;
@@ -104,11 +103,17 @@
   .settings-fab{ right:0; border:2px solid var(--surface-border); font-size:1.25rem; }
   .profile-fab:hover, .settings-fab:hover{ transform:translateY(-2px); }
   .profile-corgi{ width:88%; height:88%; object-fit:contain; display:block; }
+  /* The wordmark sits on its own row under the two corner buttons rather than
+     squeezed between them. Sharing their row capped it at roughly 38px on a
+     phone - any bigger and it ran into both - so the only way to spend the
+     room the tagline left was to give the title the full width. Scaled off
+     the viewport, it now fills about four-fifths of it: ~58px on a 375px
+     phone, capped at 80px on anything wide. */
   .hero h1{
     font-family:var(--font-display);
     font-weight:800;
-    font-size:clamp(2.4rem, 8vw, 3.4rem);
-    margin:0 0 .1rem;
+    font-size:clamp(2rem, 15.5vw, 5rem);
+    margin:46px 0 .1rem;
     color:var(--ink);
     letter-spacing:.5px;
     /* The corgi o's are taller than the letters, so a little breathing room
@@ -118,14 +123,10 @@
   .hero h1 .dot{ color:var(--accent); }
   /* Must sit AFTER the .hero h1 rule above: same specificity, so the later
      one wins and an earlier media query is simply ignored. */
-  /* The title's font floor doesn't scale below 2.4rem, but the space between
-     the two corner buttons keeps shrinking - on a 320px-wide phone the
-     wordmark ran 8px into both of them. Give back room from both sides at
-     narrow widths rather than shrinking the title everywhere. */
   @media (max-width: 360px){
     .profile-fab, .settings-fab{ width:42px; height:42px; }
     .settings-fab{ font-size:1.05rem; }
-    .hero h1{ font-size:clamp(1.7rem, 7.6vw, 3.4rem); }
+    .hero h1{ margin-top:38px; }
   }
   /* The two o's in the wordmark, cycling through the whole pack. Sized a
      touch over the cap height so the ears read, and nudged down so the face
@@ -145,13 +146,6 @@
   @media (prefers-reduced-motion: reduce){ .title-corgi{ animation:none; } }
   .leash{ width:min(260px, 60%); height:14px; margin:.1rem auto .4rem; display:block; }
   .leash path{ fill:none; stroke:var(--accent); stroke-width:3; stroke-linecap:round; }
-  .tagline{
-    margin:0;
-    color:var(--ink-muted);
-    font-weight:700;
-    font-size:.95rem;
-    letter-spacing:.2px;
-  }
   .mini-stat-line{
     margin:.25rem 0 0;
     color:var(--ink-muted);
@@ -196,7 +190,11 @@
   .level-sub.diff-1{ color:#FFF1CF; }
   .level-sub.diff-2{ color:#FFE0C4; }
   .level-sub.diff-3{ color:#FFD2D2; }
-  .daily-btn{ width:100%; margin-top:.6rem; font-size:.85rem; padding:.6rem 1rem; }
+  .daily-btn{
+    width:100%; margin-top:.6rem; font-size:.85rem; padding:.6rem 1rem;
+    display:flex; flex-direction:column; align-items:center; gap:.2rem;
+  }
+  .daily-sub{ font-size:.72rem; font-weight:700; color:var(--ink-muted); }
   .level-play.boss{
     background:linear-gradient(135deg, var(--accent), var(--board-frame));
     border-color:var(--board-frame);
@@ -269,6 +267,15 @@
   .pack-who small{ display:block; font-size:.62rem; font-weight:700; color:var(--ink-muted); }
   .pack-level{ font-size:.82rem; font-weight:800; color:var(--accent); font-variant-numeric:tabular-nums; }
 
+  /* Daily win card: where you placed against the herd on the same board. */
+  .daily-herd{ margin:.6rem 0 .2rem; }
+  .win-card .daily-streak{ font-family:var(--font-display); font-weight:800; font-size:1rem; color:var(--ink); margin:.1rem 0 .5rem; }
+  .win-card .daily-streak small{ font-size:.72rem; color:var(--ink-muted); font-weight:700; margin-left:.25rem; }
+  .win-card .daily-herd-label{ font-size:.66rem; text-transform:uppercase; letter-spacing:.08em; margin:.2rem 0 .35rem; }
+  .herd-medal{ width:1.2rem; flex:none; font-size:.95rem; text-align:center; }
+  .herd-corgi{ width:28px; height:28px; flex:none; object-fit:contain; }
+  .win-card .daily-note{ font-size:.82rem; color:var(--accent); }
+
   /* Studio ident. Fixed colours rather than theme ones - it's the same card
      every launch whatever style the player has picked. The fade-out is a CSS
      animation so a script that never runs can't trap them behind it. */
@@ -314,6 +321,21 @@
   }
   .stat-card .num{ font-family:var(--font-display); font-weight:800; font-size:1.4rem; color:var(--accent); }
   .stat-card .lbl{ font-size:.72rem; font-weight:700; color:var(--ink-muted); text-transform:uppercase; letter-spacing:.04em; }
+  /* The herd member's number: smaller, muted, fenced off under a hairline
+     and tagged with their corgi, so there's no reading it as yours. */
+  .stat-card .rival{
+    align-self:stretch;
+    display:flex; align-items:center; justify-content:center; gap:.3rem;
+    margin-top:.3rem; padding-top:.35rem;
+    border-top:1px solid var(--surface-border);
+    font-size:.78rem; font-weight:800; color:var(--ink-muted);
+    font-variant-numeric:tabular-nums;
+  }
+  .stat-card .rival img, .section-label .vs img{ width:18px; height:18px; object-fit:contain; flex:none; }
+  .section-label .vs{
+    display:inline-flex; align-items:center; gap:.25rem;
+    margin-left:.3rem; font-size:.85rem; color:var(--ink-muted);
+  }
 
   /* ---------- Toolbar (in-game) ---------- */
   #gameScreen{ display:flex; flex-direction:column; gap:1.25rem; }
@@ -745,7 +767,6 @@
              reader rather than "C rgd ku". -->
         <h1>C<img class="title-corgi" id="titleCorgiA" alt="o">rgd<img class="title-corgi" id="titleCorgiB" alt="o">ku<span class="dot">.</span></h1>
         <svg class="leash" viewBox="0 0 260 14"><path d="M2,7 Q32,-2 62,7 T122,7 T182,7 T242,7"/></svg>
-        <p class="tagline">One good boy per yard. No shared paths. No nose-to-nose.</p>
         <p class="mini-stat-line" id="collectionLine"></p>
         <p class="mini-stat-line" id="packLine" hidden></p>
       </header>
@@ -753,11 +774,14 @@
       <div class="home-block">
         <div class="level-card">
           <button type="button" id="playLevelBtn" class="primary level-play">Play Level <span id="playLevelNum">1</span></button>
-          <button type="button" id="dailyBtn" class="daily-btn">🗓️ Daily Puzzle · <span id="dailyStatus">—</span></button>
+          <button type="button" id="dailyBtn" class="daily-btn">
+            <span class="daily-main">🗓️ Daily Puzzle · <span id="dailyStatus">—</span></span>
+            <span class="daily-sub" id="dailySub" hidden></span>
+          </button>
         </div>
       </div>
       <div class="home-block">
-        <p class="section-label">Your Stats</p>
+        <p class="section-label" id="statsLabel">Your Stats</p>
         <div class="stats-grid" id="statsGrid"></div>
       </div>
 
@@ -826,6 +850,7 @@
     <p class="big-time" id="winTime">0:00</p>
     <p id="winScore"></p>
     <p id="winBest"></p>
+    <div id="dailyHerd" class="daily-herd" hidden></div>
     <div id="unlockList"></div>
     <button id="wearUnlockBtn" class="link-btn" hidden>Use it</button>
     <p id="nextUnlock" class="next-unlock" hidden></p>
@@ -841,6 +866,7 @@
     <h2 class="fail-heading">Ruff Luck 🐾</h2>
     <p>Three wrong guesses scattered the pack.</p>
     <p id="failScore"></p>
+    <p id="failDailyNote" class="daily-note" hidden></p>
     <button id="tryAgainBtn" class="primary">Try Again</button>
     <button id="failHomeBtn" class="link-btn">Back to home</button>
   </div>
@@ -958,6 +984,7 @@
   var profileCorgiEl = document.getElementById('profileCorgi');
   var gameScreen = document.getElementById('gameScreen');
   var statsGridEl = document.getElementById('statsGrid');
+  var statsLabelEl = document.getElementById('statsLabel');
   var playLevelBtn = document.getElementById('playLevelBtn');
   var playLevelNumEl = document.getElementById('playLevelNum');
   var nextLevelBtn = document.getElementById('nextLevelBtn');
@@ -1000,6 +1027,7 @@
   var hintMessageEl = document.getElementById('hintMessage');
   var dailyBtn = document.getElementById('dailyBtn');
   var dailyStatusEl = document.getElementById('dailyStatus');
+  var dailySubEl = document.getElementById('dailySub');
   var dailyDoneBtn = document.getElementById('dailyDoneBtn');
   var signInBtn = document.getElementById('signInBtn');
   var signOutBtn = document.getElementById('signOutBtn');
@@ -1026,12 +1054,14 @@
   var winTimeEl = document.getElementById('winTime');
   var winScoreEl = document.getElementById('winScore');
   var winBestEl = document.getElementById('winBest');
+  var dailyHerdEl = document.getElementById('dailyHerd');
   var winCaptionEl = document.getElementById('winCaption');
   var winDancerEl = document.getElementById('winDancer');
   var playAgainBtn = document.getElementById('playAgainBtn');
   var winHomeBtn = document.getElementById('winHomeBtn');
   var failOverlay = document.getElementById('failOverlay');
   var failScoreEl = document.getElementById('failScore');
+  var failDailyNoteEl = document.getElementById('failDailyNote');
   var tryAgainBtn = document.getElementById('tryAgainBtn');
   var failHomeBtn = document.getElementById('failHomeBtn');
 
@@ -1809,8 +1839,16 @@
       longestWin: (typeof s.longestWin === 'number') ? s.longestWin : null,
       corgisFound: s.corgisFound || 0,
       flawlessWins: s.flawlessWins || 0,
-      pawsSaved: s.pawsSaved || 0
+      pawsSaved: s.pawsSaved || 0,
+      highestScore: s.highestScore || 0
     };
+    // Highest score used to be worked out on the fly from the per-size bests,
+    // which never leave the phone - so it couldn't reach the cloud or be shown
+    // to a herd. Seeded from those bests once, so nobody's number resets.
+    var best = readBest();
+    Object.keys(best).forEach(function(k){
+      if(best[k] > lifetimeStats.highestScore) lifetimeStats.highestScore = best[k];
+    });
     return lifetimeStats;
   }
   function saveStats(){
@@ -1820,30 +1858,42 @@
 
   function renderStatsGrid(){
     var stats = loadStats();
-    var best = readBest();
-    var highest = 0;
-    Object.keys(best).forEach(function(k){ if(best[k] > highest) highest = best[k]; });
+    var rival = herdRival();
+    var rs = rival ? (rival.stats || {}) : null;
+    function count(v){ return typeof v === 'number' ? v : 0; }
+    function time(v){ return typeof v === 'number' ? formatTime(v) : '—'; }
     var tiles = [
-      {num: stats.runs, lbl:"Runs Played"},
-      {num: stats.streak, lbl:"Win Streak"},
-      {num: highest, lbl:"Highest Score"},
-      {num: (typeof stats.fastestWin==='number') ? formatTime(stats.fastestWin) : '—', lbl:"Fastest Win"},
-      {num: (typeof stats.longestWin==='number') ? formatTime(stats.longestWin) : '—', lbl:"Longest Win"},
-      {num: stats.corgisFound, lbl:"Corgis Found"},
-      {num: stats.flawlessWins, lbl:"Flawless Wins"},
-      {num: stats.pawsSaved, lbl:"Paws Saved"}
+      {mine: stats.runs,              theirs: rs && count(rs.runs),          lbl:"Runs Played"},
+      {mine: stats.streak,            theirs: rs && count(rs.streak),        lbl:"Win Streak"},
+      // A herd member on an older build hasn't synced this one yet.
+      {mine: stats.highestScore,      theirs: rs && (typeof rs.highestScore === 'number' ? rs.highestScore : '—'), lbl:"Highest Score"},
+      {mine: time(stats.fastestWin),  theirs: rs && time(rs.fastestWin),     lbl:"Fastest Win"},
+      {mine: time(stats.longestWin),  theirs: rs && time(rs.longestWin),     lbl:"Longest Win"},
+      {mine: stats.corgisFound,       theirs: rs && count(rs.corgisFound),   lbl:"Corgis Found"},
+      {mine: stats.flawlessWins,      theirs: rs && count(rs.flawlessWins),  lbl:"Flawless Wins"},
+      {mine: stats.pawsSaved,         theirs: rs && count(rs.pawsSaved),     lbl:"Paws Saved"}
     ];
+    // Their corgi stands in for their name on every card - it's how they
+    // already appear in the pack list, and a name repeated eight times over
+    // would drown out the numbers it's meant to be labelling.
+    var badge = rival
+      ? '<img src="art/corgis/' + skinById(rival.corgi || 'classic').id + '.png" alt="">'
+      : '';
     statsGridEl.innerHTML = '';
     tiles.forEach(function(t){
       var card = document.createElement('div');
       card.className = 'stat-card';
-      card.innerHTML = '<span class="num">'+t.num+'</span><span class="lbl">'+t.lbl+'</span>';
+      card.innerHTML = '<span class="num">' + t.mine + '</span><span class="lbl">' + t.lbl + '</span>' +
+        (rival ? '<span class="rival">' + badge + escapeText(t.theirs) + '</span>' : '');
       statsGridEl.appendChild(card);
     });
+    statsLabelEl.innerHTML = rival
+      ? 'Your Stats <span class="vs">vs. ' + badge + escapeText(rival.name || 'Corgi fan') + '</span>'
+      : 'Your Stats';
   }
 
-  // A running count of the unlock ladder, right under the tagline where the
-  // random hero corgi already lives - turns "there are 62 of these" into a
+  // A running count of the unlock ladder, right under the wordmark where the
+  // cycling corgis already live - turns "there are 62 of these" into a
   // number that visibly climbs, the same way the other stats do. Kept out of
   // the stats grid itself so an odd total doesn't leave one tile dangling in
   // its own row.
@@ -1855,25 +1905,206 @@
     collectionLineEl.innerHTML = '<b>' + have + '</b> of ' + CORGI_SKINS.length + ' corgis collected';
   }
 
+  // ---------------------------------------------------------------------
+  // The herd, as the home screen sees it. One read of the pack feeds the rank
+  // line, the rival under every stat and today's daily standings, and the
+  // last one is kept on the phone. Without that, all three would render bare
+  // on launch and then pop in a beat later, shoving the cards down the page.
+  //
+  // Only ever used for OTHER people. Your own numbers always come from this
+  // phone, so a herd read that's a few minutes old can't show you behind
+  // where you actually are.
+  // ---------------------------------------------------------------------
+  var HERD_CACHE_KEY = 'corgdoku_herd_cache_v1';
+  var HERD_MIN_GAP = 20000;
+  var herdFetchedAt = 0;
+  var herdInflight = false;
+
+  function herdVisible(){
+    // The flag the account leaves behind, not the live auth state - that
+    // takes a moment to restore after launch and would flash the herd away.
+    try{ if(localStorage.getItem('corgdoku_signedin') !== '1') return false; }catch(e){ return false; }
+    return !!readLocal(PACK_KEY);
+  }
+  function cachedHerd(){
+    if(!herdVisible()) return null;
+    try{
+      var c = JSON.parse(localStorage.getItem(HERD_CACHE_KEY));
+      if(!c || c.code !== readLocal(PACK_KEY) || !Array.isArray(c.members)) return null;
+      return c;
+    }catch(e){ return null; }
+  }
+  function clearHerdCache(){
+    try{ localStorage.removeItem(HERD_CACHE_KEY); }catch(e){}
+    herdFetchedAt = 0;
+  }
+
+  // "Next closest" in the herd: whoever's level is nearest yours, and on a
+  // tie the one ahead - someone to chase beats someone to fend off.
+  function herdRival(){
+    var herd = cachedHerd();
+    if(!herd) return null;
+    var mine = loadLevelState().highest;
+    var pick = null, gap = Infinity, ahead = false;
+    herd.members.forEach(function(m){
+      if(m.isMe) return;
+      var lv = m.level || 1, g = Math.abs(lv - mine), a = lv >= mine;
+      if(g < gap || (g === gap && a && !ahead)){ pick = m; gap = g; ahead = a; }
+    });
+    return pick;
+  }
+
+  function refreshHerd(force){
+    renderHerdViews();
+    if(!herdVisible() || !window.CorgdokuCloud || herdInflight) return;
+    var stale = !cachedHerd();
+    if(!force && !stale && Date.now() - herdFetchedAt < HERD_MIN_GAP) return;
+    herdInflight = true;
+    herdFetchedAt = Date.now();
+    var code = readLocal(PACK_KEY);
+    window.CorgdokuCloud.readPack(code).then(function(data){
+      herdInflight = false;
+      // Left or switched packs while this was in flight.
+      if(!data || readLocal(PACK_KEY) !== code) return;
+      try{ localStorage.setItem(HERD_CACHE_KEY, JSON.stringify(data)); }catch(e){}
+      renderHerdViews();
+    }, function(){ herdInflight = false; });
+  }
+
+  function renderHerdViews(){
+    renderPackLine();
+    renderStatsGrid();
+    renderDailyCard();
+    if(!winOverlay.hidden && dailyMode) renderDailyHerd();
+  }
+
   // Pack standing on the home screen rather than buried in settings - it's
-  // the one social bit of the app, and nobody will remember to go looking
-  // for it otherwise. Silently hides itself for anyone not signed into a
-  // pack, and never blocks on the network to show it.
+  // the one social bit of the app, and nobody would go looking for it.
   function renderPackLine(){
     if(!packLineEl) return;
-    var pack = readLocal(PACK_KEY);
-    if(!pack || !window.CorgdokuCloud || !window.CorgdokuCloud.state().signedIn){
-      packLineEl.hidden = true;
-      return;
+    var herd = cachedHerd();
+    if(!herd || herd.members.length < 2){ packLineEl.hidden = true; return; }
+    var mine = loadLevelState().highest;
+    var ahead = herd.members.filter(function(m){ return !m.isMe && (m.level || 1) > mine; }).length;
+    packLineEl.innerHTML = '🐾 <b>#' + (ahead + 1) + '</b> of ' + herd.members.length + ' in ' + escapeText(herd.name);
+    packLineEl.hidden = false;
+  }
+
+  // Today's daily, ranked. Only solves of the identical board are ranked
+  // against each other - the fingerprint check is what stops a phone still
+  // on an older build, which would have generated a different board for the
+  // same date, from being compared as though it were the same race.
+  function dailyStandings(date){
+    // A daily started just before midnight and finished just after belongs to
+    // the day it was dealt, so the win screen asks about that date explicitly.
+    var today = date || todayKey();
+    var mine = loadDaily()[today];
+    var herd = cachedHerd();
+    var rows = [];
+    if(dailySolved(mine) && typeof mine.first === 'number'){
+      rows.push({me:true, name:'You', corgi:currentSkinId, first:mine.first,
+                 tries:mine.tries || 1, board:mine.board});
     }
-    window.CorgdokuCloud.readPack(pack).then(function(data){
-      if(!data || data.members.length < 2){ packLineEl.hidden = true; return; }
-      var rank = -1;
-      for(var i=0;i<data.members.length;i++){ if(data.members[i].isMe){ rank = i+1; break; } }
-      if(rank < 0){ packLineEl.hidden = true; return; }
-      packLineEl.innerHTML = '🐾 <b>#' + rank + '</b> of ' + data.members.length + ' in ' + escapeText(data.name);
-      packLineEl.hidden = false;
-    }).catch(function(){ packLineEl.hidden = true; });
+    var waiting = [];
+    // Everything below came off someone else's phone and some of it ends up
+    // in markup, so it's forced into plain integers here at the boundary.
+    function whole(v, min){ v = Math.round(Number(v)); return isFinite(v) ? Math.max(min, v) : min; }
+    (herd ? herd.members : []).forEach(function(m){
+      if(m.isMe) return;
+      var d = m.daily;
+      if(d && d.date === today && d.done && typeof d.first === 'number'){
+        rows.push({me:false, name:m.name || 'Corgi fan', corgi:m.corgi, first:whole(d.first, 0),
+                   tries:whole(d.tries, 1), board:d.board});
+      } else {
+        waiting.push({name:m.name || 'Corgi fan', corgi:m.corgi, tried: !!(d && d.date === today && d.fails > 0)});
+      }
+    });
+    var ref = rows.length ? rows[0].board : null;
+    var ranked = rows.filter(function(r){ return r.board === ref; })
+      .sort(function(a, b){ return (a.first - b.first) || (a.tries - b.tries); });
+    var offBoard = rows.filter(function(r){ return r.board !== ref; });
+    return {ranked:ranked, offBoard:offBoard, waiting:waiting, inHerd: !!(herd && herd.members.length > 1)};
+  }
+
+  var PLACE_MEDALS = ['🥇', '🥈', '🥉'];
+  function ordinal(n){
+    var s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  }
+
+  function renderDailyCard(){
+    var today = todayKey();
+    var all = loadDaily();
+    var rec = all[today];
+    var size = dailySizeFor(today);
+    if(dailySolved(rec)){
+      dailyStatusEl.textContent = 'solved in ' + formatTime(typeof rec.first === 'number' ? rec.first : rec.time);
+    } else {
+      dailyStatusEl.textContent = size + '×' + size + ' · ' + difficultyFor({floor:DAILY_FLOOR, n:size}).name;
+    }
+
+    var parts = [];
+    var streak = dailyStreak(all, today);
+    if(streak > 0) parts.push('🔥 ' + streak + '-day streak');
+    var st = dailyStandings(today);
+    if(st.inHerd){
+      var mine = -1;
+      st.ranked.forEach(function(r, i){ if(r.me) mine = i; });
+      if(mine >= 0 && st.ranked.length > 1){
+        parts.push((PLACE_MEDALS[mine] || '') + ' ' + ordinal(mine + 1) + ' of ' + st.ranked.length + ' in the herd');
+      } else if(mine >= 0){
+        parts.push('nobody else has solved it yet');
+      } else if(st.ranked.length){
+        // Before you've played: the time to beat.
+        parts.push(escapeText(st.ranked[0].name) + ' solved it in ' + formatTime(st.ranked[0].first));
+      }
+    }
+    dailySubEl.innerHTML = parts.join(' · ');
+    dailySubEl.hidden = !parts.length;
+  }
+
+  function herdRow(r, medal, right, sub){
+    return '<div class="pack-member' + (r.me ? ' me' : '') + '">' +
+      '<span class="herd-medal">' + medal + '</span>' +
+      '<img class="herd-corgi" src="art/corgis/' + skinById(r.corgi || 'classic').id + '.png" alt="">' +
+      '<span class="pack-who">' + escapeText(r.name) + (sub ? '<small>' + sub + '</small>' : '') + '</span>' +
+      '<span class="pack-level">' + right + '</span>' +
+    '</div>';
+  }
+
+  // The daily's payoff: where you placed. Rendered from the cached herd
+  // straight away, then again once a fresh read lands - someone may well
+  // have finished in the time you were solving.
+  function renderDailyHerd(){
+    if(!dailyMode){ dailyHerdEl.hidden = true; return; }
+    var all = loadDaily();
+    var streak = dailyStreak(all, todayKey());
+    var best = dailyBestStreak(all);
+    var html = '';
+    if(streak > 0){
+      html += '<p class="daily-streak">🔥 ' + streak + '-day streak' +
+        (best > streak ? ' <small>best ' + best + '</small>' : '') + '</p>';
+    }
+    var st = dailyStandings(dailyDate);
+    if(st.inHerd){
+      html += '<p class="daily-herd-label">Today’s herd</p><div class="pack-list">';
+      st.ranked.forEach(function(r, i){
+        html += herdRow(r, PLACE_MEDALS[i] || '', formatTime(r.first), r.tries > 1 ? r.tries + ' tries' : 'first try');
+      });
+      st.offBoard.forEach(function(r){ html += herdRow(r, '', '✓', 'different board'); });
+      st.waiting.forEach(function(w){ html += herdRow(w, '', w.tried ? 'trying' : '—', w.tried ? 'hasn’t cracked it' : 'not played yet'); });
+      html += '</div>';
+    }
+    dailyHerdEl.innerHTML = html;
+    dailyHerdEl.hidden = !html;
+  }
+
+  function renderFailDailyNote(){
+    if(!dailyMode){ failDailyNoteEl.hidden = true; return; }
+    var streak = dailyStreak(loadDaily(), todayKey());
+    failDailyNoteEl.textContent = '🔥 Streak safe at ' + streak + (streak === 1 ? ' day' : ' days') +
+      ' — showing up is what counts.';
+    failDailyNoteEl.hidden = false;
   }
 
   function formatTime(sec){
@@ -1987,31 +2218,123 @@
 
   // ---------------------------------------------------------------------
   // Daily puzzle: seeded from the date, so every phone builds the identical
-  // board for a given day with nothing coordinating them.
+  // board for a given day with nothing coordinating them. That shared board
+  // is what makes it worth doing - every ladder level is a different board,
+  // so the daily is the only puzzle a herd can genuinely race each other on.
   // ---------------------------------------------------------------------
+  // Always the top of the range. The deepest technique needs room on the
+  // board to be required at all (see maxFloorForSize), which sets the sizes.
+  var DAILY_SIZES = [9, 10];
+  var DAILY_FLOOR = 4;
+
   function loadDaily(){
     try{ return JSON.parse(localStorage.getItem(DAILY_KEY)) || {}; }catch(e){ return {}; }
   }
   function saveDaily(obj){
     try{ localStorage.setItem(DAILY_KEY, JSON.stringify(obj)); }catch(e){}
+    queueSync();
   }
-  function recordDailyResult(dateKey, secs, pts){
+
+  // Records from before this carry only a time and score, and were only ever
+  // written on a solve.
+  function dailySolved(r){ return !!(r && (r.solved || typeof r.time === 'number')); }
+  // Showing up keeps the streak, solved or not. This is deliberately the
+  // hardest board in the game, and a streak one bad morning can wipe turns a
+  // nice ritual into a chore.
+  function dailyCounts(r){ return dailySolved(r) || !!(r && r.fails > 0); }
+
+  function recordDailySolve(dateKey, secs, pts, board){
     var all = loadDaily();
     var prev = all[dateKey] || {};
-    all[dateKey] = {
-      time: (typeof prev.time === 'number') ? Math.min(prev.time, secs) : secs,
-      score: (typeof prev.score === 'number') ? Math.max(prev.score, pts) : pts
+    var rec = {
+      time: typeof prev.time === 'number' ? Math.min(prev.time, secs) : secs,
+      score: typeof prev.score === 'number' ? Math.max(prev.score, pts) : pts,
+      fails: prev.fails || 0,
+      solved: true
     };
+    // The herd ranks the FIRST solve only. A replay still improves your own
+    // best, but can't buy a better placing on a board you've seen solved.
+    if(typeof prev.first === 'number'){
+      rec.first = prev.first; rec.tries = prev.tries; rec.board = prev.board; rec.at = prev.at;
+    } else if(!dailySolved(prev)){
+      rec.first = secs; rec.tries = (prev.fails || 0) + 1; rec.board = board; rec.at = Date.now();
+    }
+    all[dateKey] = rec;
+    saveDaily(all);
+  }
+  function recordDailyFail(dateKey){
+    var all = loadDaily();
+    var prev = all[dateKey] || {};
+    // Once it's solved, later runs are replays rather than tries.
+    if(dailySolved(prev)) return;
+    prev.fails = (prev.fails || 0) + 1;
+    all[dateKey] = prev;
     saveDaily(all);
   }
 
-  function renderDailyCard(){
-    var key = todayKey();
-    var done = loadDaily()[key];
-    var size = dailySizeFor(key);
-    dailyStatusEl.textContent = done
-      ? 'done in ' + formatTime(done.time)
-      : size + '×' + size + ' today';
+  function keyFromDate(d){
+    var m = d.getMonth()+1, day = d.getDate();
+    return d.getFullYear() + '-' + (m<10?'0'+m:m) + '-' + (day<10?'0'+day:day);
+  }
+  function shiftDay(key, delta){
+    var p = key.split('-');
+    // Noon, so stepping across a daylight-saving change can't skip or repeat
+    // a date the way midnight arithmetic can.
+    var d = new Date(+p[0], +p[1] - 1, +p[2], 12);
+    d.setDate(d.getDate() + delta);
+    return keyFromDate(d);
+  }
+
+  // Counted back from today - or from yesterday while today's is still to
+  // play, so the streak doesn't read as broken over breakfast.
+  function dailyStreak(all, today){
+    var k = dailyCounts(all[today]) ? today : shiftDay(today, -1);
+    var run = 0;
+    while(dailyCounts(all[k])){ run++; k = shiftDay(k, -1); }
+    return run;
+  }
+  function dailyBestStreak(all){
+    var best = 0, run = 0, prev = null;
+    Object.keys(all).filter(function(k){ return dailyCounts(all[k]); }).sort()
+      .forEach(function(k){
+        run = (prev && shiftDay(prev, 1) === k) ? run + 1 : 1;
+        if(run > best) best = run;
+        prev = k;
+      });
+    return best;
+  }
+
+  // What the herd sees: the latest day played, plus the streak worked out
+  // here, where the rules for it live.
+  function dailySummary(){
+    var all = loadDaily();
+    var today = todayKey();
+    var played = Object.keys(all).filter(function(k){ return dailyCounts(all[k]); }).sort();
+    var out = {
+      streak: dailyStreak(all, today),
+      best: dailyBestStreak(all),
+      solved: played.filter(function(k){ return dailySolved(all[k]); }).length
+    };
+    if(played.length){
+      var date = played[played.length - 1], r = all[date];
+      out.date = date;
+      out.done = dailySolved(r);
+      out.fails = r.fails || 0;
+      if(typeof r.first === 'number'){
+        out.first = r.first;
+        out.tries = r.tries || 1;
+        if(typeof r.board === 'number') out.board = r.board;
+      }
+    }
+    return out;
+  }
+
+  // Someone's streak as of today. Theirs was worked out when they last synced,
+  // so if they haven't played since before yesterday it has lapsed since.
+  function liveStreak(summary){
+    if(!summary || !summary.date) return 0;
+    var today = todayKey();
+    return (summary.date === today || summary.date === shiftDay(today, -1)) ? (summary.streak || 0) : 0;
   }
 
   function goToDaily(){
@@ -2019,9 +2342,7 @@
     dailyDate = todayKey();
     currentLevel = 0;
     n = dailySizeFor(dailyDate);
-    // The daily sits at a steady middle difficulty rather than following the
-    // ladder - everyone gets the same board whatever level they've reached.
-    currentFloor = 2;
+    currentFloor = DAILY_FLOOR;
     clearHint();
     homeScreen.hidden = true;
     gameScreen.hidden = false;
@@ -2083,7 +2404,7 @@
     currentLevel = data.level || 1;
     n = data.n;
     // So "Replay this level" rebuilds at the difficulty this slot asks for.
-    currentFloor = dailyMode ? 2 : sizeInfoForLevel(currentLevel).floor;
+    currentFloor = dailyMode ? DAILY_FLOOR : sizeInfoForLevel(currentLevel).floor;
     regions = data.regions;
     board = data.board;
     score = data.score || 0;
@@ -2134,12 +2455,16 @@
       return {
         level: loadLevelState().highest,
         stats: loadStats(),
+        // Synced so a streak survives a reinstall or a reset the same way the
+        // level does - it was the one piece of progress that silently didn't.
+        daily: loadDaily(),
         corgi: currentSkinId,
         paw: currentPawId,
         pack: readLocal(PACK_KEY),
         name: readLocal(NAME_KEY)
       };
     },
+    dailySummary: dailySummary,
     apply: function(s){
       if(!s) return;
       applyingRemote = true;
@@ -2158,6 +2483,7 @@
         });
         saveStats();
       }
+      if(s.daily) saveDaily(s.daily);
       writeLocal(PACK_KEY, s.pack || null);
       if(s.name) writeLocal(NAME_KEY, s.name);
       // Skins go through the normal path so a skin the level no longer
@@ -2165,11 +2491,10 @@
       if(s.corgi) applyCorgiSkin(s.corgi, true);
       if(s.paw) applyPawMarker(s.paw, true);
       renderLevelCard();
-      renderStatsGrid();
       renderSkinGrid();
       renderPawGrid();
       renderCollectionLine();
-      renderPackLine();
+      refreshHerd();
     }
   };
 
@@ -2222,7 +2547,7 @@
   // there's nothing left that a stray auto-restore on reload could undo.
   function resetLocalProgress(){
     [STORAGE_KEY, STATS_KEY, LEVEL_KEY, DAILY_KEY, RESUME_KEY,
-     SKIN_KEY, PAW_KEY, PACK_KEY, NAME_KEY].forEach(function(k){
+     SKIN_KEY, PAW_KEY, PACK_KEY, NAME_KEY, HERD_CACHE_KEY].forEach(function(k){
       try{ localStorage.removeItem(k); }catch(e){}
     });
   }
@@ -2275,9 +2600,9 @@
     signedInBox.hidden = !signedIn;
     accountBlurbEl.hidden = signedIn;
     // The real auth state can settle a moment after launch (session restore
-    // is async), which is exactly when the home-screen pack line needs to
+    // is async), which is exactly when the herd on the home screen needs to
     // catch up rather than being stuck on whatever it guessed at startup.
-    renderPackLine();
+    refreshHerd();
     // Same for the Settings sheet's cloud-data block, which only appears
     // once there's actually a backup to delete.
     renderSettingsSheet();
@@ -2346,10 +2671,8 @@
     failOverlay.hidden = true;
     homeScreen.hidden = false;
     renderLevelCard();
-    renderDailyCard();
-    renderStatsGrid();
     renderCollectionLine();
-    renderPackLine();
+    refreshHerd();
     startHeroCorgiCycle();
   }
 
@@ -2458,14 +2781,11 @@
   // Local date, not UTC - the two of you are in the same place, and "today"
   // should mean today's date on the phone rather than a rollover at some odd hour.
   function todayKey(){
-    var d = new Date();
-    var m = d.getMonth()+1, day = d.getDate();
-    return d.getFullYear() + '-' + (m<10?'0'+m:m) + '-' + (day<10?'0'+day:day);
+    return keyFromDate(new Date());
   }
 
   function dailySizeFor(dateKey){
-    var choices = [6,7,8,9,10];
-    return choices[hashString(dateKey + ':size') % choices.length];
+    return DAILY_SIZES[hashString(dateKey + ':size') % DAILY_SIZES.length];
   }
 
   function shuffle(arr){
@@ -3228,8 +3548,10 @@
 
     var stats = loadStats();
     stats.runs++;
-    stats.streak = 0;
+    if(dailyMode) recordDailyFail(dailyDate);
+    else stats.streak = 0;
     saveStats();
+    renderFailDailyNote();
   }
 
   // The win card is where a level-up lands, so a newly unlocked corgi is
@@ -3375,8 +3697,13 @@
 
     var stats = loadStats();
     stats.runs++;
-    stats.streak++;
-    if(stats.streak > stats.bestStreak) stats.bestStreak = stats.streak;
+    // The daily keeps its own streak, and it's the hardest board in the game -
+    // it shouldn't be able to wreck the ladder's either way.
+    if(!dailyMode){
+      stats.streak++;
+      if(stats.streak > stats.bestStreak) stats.bestStreak = stats.streak;
+    }
+    if(score > stats.highestScore) stats.highestScore = score;
     if(flawless) stats.flawlessWins++;
     stats.pawsSaved += (MAX_MISTAKES - mistakes);
     if(stats.fastestWin===null || elapsedSec < stats.fastestWin) stats.fastestWin = elapsedSec;
@@ -3393,7 +3720,10 @@
     // The daily is its own thing - it records a result for the date rather
     // than pushing the level counter forward.
     if(dailyMode){
-      recordDailyResult(dailyDate, elapsedSec, score);
+      // The board's own fingerprint travels with the result, so a herd only
+      // ever ranks times set on the identical board - not ones from a phone
+      // still running an older build that generated something different.
+      recordDailySolve(dailyDate, elapsedSec, score, hashString(JSON.stringify(regions)));
     } else {
       var lvl = loadLevelState();
       if(currentLevel === lvl.highest){
@@ -3416,6 +3746,9 @@
     winScoreEl.textContent = 'Score: ' + score + (flawless ? ' (flawless +'+FLAWLESS_BONUS+'!)' : '');
     winBestEl.textContent = isNewBest ? 'New best score! 🎉' : ('Best: ' + best[n]);
     winOverlay.hidden = false;
+    renderDailyHerd();
+    // Someone else may well have finished while you were solving.
+    if(dailyMode) refreshHerd(true);
     startWinDance();
     playWinSound();
     buzz([25, 60, 25]);
@@ -3480,6 +3813,7 @@
       deleteConfirmBox.hidden = true;
       writeLocal(PACK_KEY, null);
       writeLocal(NAME_KEY, null);
+      clearHerdCache();
       renderAccount(window.CorgdokuCloud.state());
       renderSettingsSheet();
       setSettingsStatus('Deleted. Your progress on this phone is untouched.');
@@ -3494,6 +3828,10 @@
   signOutBtn.addEventListener('click', function(){
     if(!window.CorgdokuCloud) return;
     window.CorgdokuCloud.signOut().then(function(){
+      // Otherwise a different account signing in on this phone would briefly
+      // be shown the last one's herd.
+      clearHerdCache();
+      refreshHerd();
       setAccountStatus('Signed out. Nothing leaves this phone now.');
     });
   });
@@ -3528,6 +3866,7 @@
     if(!window.CorgdokuCloud) return;
     window.CorgdokuCloud.leavePack().then(function(){
       writeLocal(PACK_KEY, null);
+      clearHerdCache();
       renderAccount(window.CorgdokuCloud.state());
       setAccountStatus('Left the pack.');
     });
@@ -3621,10 +3960,8 @@
   renderProfileButton();
   renderSettingsSheet();
   renderLevelCard();
-  renderDailyCard();
-  renderStatsGrid();
   renderCollectionLine();
-  renderPackLine();
+  refreshHerd();
   startHeroCorgiCycle();
 
   // Someone who signed in before gets reconnected quietly on launch. Anyone
