@@ -338,7 +338,72 @@
   }
 
   /* ---------- Toolbar (in-game) ---------- */
-  #gameScreen{ display:flex; flex-direction:column; gap:1.25rem; }
+  /* Header, board and rules spread down the whole screen rather than bunched
+     at the top over a bare strip. The gap is only the minimum between them -
+     on a tall phone the spare height goes into those two spaces, and on a
+     short one it all just flows and scrolls as before. 3rem is the body's
+     own top and bottom padding. */
+  #gameScreen{
+    display:flex; flex-direction:column; gap:1.25rem;
+    justify-content:space-between;
+    min-height:calc(100vh - 3rem);
+    min-height:calc(100dvh - 3rem);
+  }
+  /* Settings over a puzzle pauses the clock, so the board is hidden behind it
+     for as long as it's open - see restartTimer for why. */
+  body:has(#settingsOverlay:not([hidden])) #gameScreen .board-frame{ filter:blur(10px); }
+
+  .rules-strip{
+    list-style:none; margin:0; padding:0;
+    display:grid; grid-template-columns:repeat(3, 1fr); gap:.5rem;
+  }
+  /* Diagram above the words on a phone. Side by side, three cards across a
+     375px screen left each line of text about 45px wide, and "One good boy
+     per yard" broke into five one-word lines. With room to spare, they go
+     side by side the way the reference layout has them. */
+  .rule{
+    display:flex; flex-direction:column; align-items:center; gap:.4rem;
+    text-align:center;
+    background:var(--surface);
+    border-radius:14px;
+    padding:.6rem .4rem;
+    box-shadow:var(--elevation-1);
+  }
+  @media (min-width:520px){
+    .rule{ flex-direction:row; text-align:left; gap:.6rem; padding:.6rem .7rem; }
+  }
+  /* A little board in the board's own frame colour, so it reads as a tiny
+     version of the real thing rather than as an icon. */
+  .rule-grid{
+    flex:none;
+    display:grid; gap:2px;
+    /* Rows need sizing too: left to auto, the icons' percentage heights
+       have nothing definite to resolve against and stretch the rows tall. */
+    grid-template-columns:repeat(3, 1fr);
+    grid-template-rows:repeat(3, 1fr);
+    width:52px; height:52px;
+    padding:2px;
+    border-radius:7px;
+    background:var(--board-frame);
+  }
+  .rule-grid .sq{
+    display:flex; align-items:center; justify-content:center;
+    min-width:0; min-height:0; overflow:hidden;
+    border-radius:1px;
+    background:color-mix(in srgb, var(--ink) 9%, var(--surface));
+  }
+  .rule-grid .sq.yard{ background:var(--pack-0); }
+  .rule-grid .sq.other{ background:var(--pack-1); }
+  .rule-grid svg{ width:88%; height:88%; display:block; }
+  .rule-grid svg.paw{ width:70%; height:70%; color:var(--paw-ink); }
+  .rule-text{ font-size:.76rem; font-weight:800; line-height:1.2; color:var(--ink); }
+  /* Browsers happily break after a hyphen, which made "nose-to- / nose". */
+  .rule-text .nw{ white-space:nowrap; }
+
+  .sr-only{
+    position:absolute; width:1px; height:1px; margin:-1px; padding:0;
+    overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0;
+  }
   .toolbar{
     display:flex;
     flex-direction:column;
@@ -813,7 +878,7 @@
           <span class="pack-label" id="packLabel"></span>
           <div class="util-side util-side-end">
             <button id="hintBtn" class="icon-btn" title="Show me a square I can work out">💡</button>
-            <button id="muteBtn" class="icon-btn" title="Mute sound" aria-pressed="false">🔊</button>
+            <button id="gameSettingsBtn" class="icon-btn" title="Settings" aria-label="Settings">⚙️</button>
           </div>
         </div>
         <p class="hint-message" id="hintMessage" hidden></p>
@@ -836,6 +901,10 @@
       <div class="board-frame">
         <div id="board" class="board" role="grid" aria-label="Corgdoku puzzle board"></div>
       </div>
+
+      <!-- Filled in at startup from RULE_DIAGRAMS. The corgi and paw in each
+           little board are the player's own, so they re-skin with the rest. -->
+      <ul class="rules-strip" id="rulesStrip" aria-label="Rules"></ul>
     </section>
   </main>
 </div>
@@ -1049,7 +1118,8 @@
   var refreshPackBtn = document.getElementById('refreshPackBtn');
   var syncLineEl = document.getElementById('syncLine');
   var corgisTrackerBoxEl = corgisTrackerEl.parentElement;
-  var muteBtn = document.getElementById('muteBtn');
+  var gameSettingsBtn = document.getElementById('gameSettingsBtn');
+  var rulesStripEl = document.getElementById('rulesStrip');
   var winOverlay = document.getElementById('winOverlay');
   var winTimeEl = document.getElementById('winTime');
   var winScoreEl = document.getElementById('winScore');
@@ -1785,12 +1855,7 @@
     try{ if(navigator.vibrate) navigator.vibrate(pattern); }catch(e){}
   }
 
-  function updateMuteButton(){
-    muteBtn.textContent = muted ? '🔇' : '🔊';
-    muteBtn.setAttribute('aria-pressed', muted ? 'true' : 'false');
-    muteBtn.title = muted ? 'Unmute sound' : 'Mute sound';
-    // The in-game speaker icon and the Settings toggle are the same setting
-    // in two places, so they always move together.
+  function updateSoundToggle(){
     if(soundToggleBtn){
       soundToggleBtn.textContent = muted ? 'Off' : 'On';
       soundToggleBtn.setAttribute('aria-pressed', muted ? 'false' : 'true');
@@ -1800,7 +1865,7 @@
   function setSoundMuted(next){
     muted = next;
     try{ localStorage.setItem(MUTE_KEY, muted ? '1' : '0'); }catch(e){}
-    updateMuteButton();
+    updateSoundToggle();
     if(!muted) getAudioCtx();
   }
 
@@ -2537,7 +2602,7 @@
     deleteConfirmBox.hidden = true;
     resetConfirmBox.hidden = true;
     setSettingsStatus('');
-    updateMuteButton();
+    updateSoundToggle();
     setMasterVolume(masterVolume, false);
   }
 
@@ -2700,8 +2765,9 @@
 
   window.addEventListener('popstate', function(e){
     var s = (e.state && e.state.s) || 'home';
-    // Profile and Settings are siblings, not nested - each opens from the
-    // home screen and backs straight out to it.
+    // Profile and Settings are siblings, not nested. Each backs straight out
+    // to wherever it was opened from - for Settings that can be a puzzle,
+    // which lands on the 'game' branch below.
     settingsOverlay.hidden = (s !== 'settings');
     profileOverlay.hidden = (s !== 'profile');
     if(s === 'settings' || s === 'profile') return;
@@ -3228,9 +3294,50 @@
       // Put the phone down and the clock stops, so walking away mid-puzzle
       // doesn't quietly ruin your Fastest Win.
       if(document.hidden) return;
+      // Same for Settings opened over a puzzle. The board is blurred behind it
+      // for as long as it's open, so the pause can't double as a free, untimed
+      // look at the board - which matters once a herd is racing on the daily.
+      if(!settingsOverlay.hidden) return;
       elapsedSec++;
       timerEl.textContent = formatTime(elapsedSec);
     }, 1000);
+  }
+
+  // ---------------------------------------------------------------------
+  // The three rules, under the board. Each gets a tiny 3x3 board, read left
+  // to right, top to bottom: c = the corgi, p = a square it rules out,
+  // . = open. Only the first draws yards; the other two sit on a plain board
+  // so they don't seem to be saying something about yards as well.
+  //
+  // Each shows its one rule in isolation, the way these always do - in the
+  // yard diagram, a square sharing the corgi's row is left open even though
+  // the paths rule would rule it out too.
+  // ---------------------------------------------------------------------
+  var RULE_DIAGRAMS = [
+    {cells:'cp.pp....', yard:[0, 1, 3, 4], text:'One good boy per yard',
+     plain:'one corgi in each colored yard'},
+    {cells:'pcp.p..p.', text:'No shared paths',
+     plain:'never two corgis in the same row or column'},
+    {cells:'ppppcpppp', text:'No <span class="nw">nose-to-nose</span>',
+     plain:'corgis can’t touch, not even diagonally'}
+  ];
+
+  function buildRulesStrip(){
+    rulesStripEl.innerHTML = RULE_DIAGRAMS.map(function(d){
+      var squares = d.cells.split('').map(function(ch, i){
+        var yard = d.yard ? (d.yard.indexOf(i) >= 0 ? ' yard' : ' other') : '';
+        var art = ch === 'c' ? '<svg><use href="#icon-corgi"></use></svg>'
+                : ch === 'p' ? '<svg class="paw"><use href="#icon-paw"></use></svg>'
+                : '';
+        return '<span class="sq' + yard + '">' + art + '</span>';
+      }).join('');
+      // The cute line is what's on screen; the plain version rides along for
+      // screen readers, which can't see the diagram doing the explaining.
+      return '<li class="rule">' +
+        '<span class="rule-grid" aria-hidden="true">' + squares + '</span>' +
+        '<span class="rule-text">' + d.text + '<span class="sr-only"> — ' + d.plain + '</span></span>' +
+      '</li>';
+    }).join('');
   }
 
   function neighborsRegionDiffer(r,c,dr,dc){
@@ -3873,7 +3980,6 @@
   });
 
   refreshPackBtn.addEventListener('click', refreshPack);
-  muteBtn.addEventListener('click', function(){ setSoundMuted(!muted); });
 
   soundToggleBtn.addEventListener('click', function(){
     setSoundMuted(!muted);
@@ -3938,11 +4044,15 @@
     else profileOverlay.hidden = true;
   });
 
-  settingsFab.addEventListener('click', function(){
+  function openSettings(){
     renderSettingsSheet();
     settingsOverlay.hidden = false;
     pushScreen('settings');
-  });
+  }
+  settingsFab.addEventListener('click', openSettings);
+  // The same full sheet mid-puzzle - it's where sound lives now, in place of
+  // the old speaker button. The clock waits while it's open (see restartTimer).
+  gameSettingsBtn.addEventListener('click', openSettings);
   closeSettingsBtn.addEventListener('click', function(){
     if(history.state && history.state.s === 'settings') history.back();
     else settingsOverlay.hidden = true;
@@ -3953,9 +4063,10 @@
   applyScheme(savedScheme);
   var savedSkin = null, savedPaw = null;
   try{ savedSkin = localStorage.getItem(SKIN_KEY); savedPaw = localStorage.getItem(PAW_KEY); }catch(e){}
+  buildRulesStrip();
   applyCorgiSkin(savedSkin || CORGI_SKINS[0].id, false);
   applyPawMarker(savedPaw || PAW_MARKERS[0].id, false);
-  updateMuteButton();
+  updateSoundToggle();
   setMasterVolume(masterVolume, false);
   renderProfileButton();
   renderSettingsSheet();
