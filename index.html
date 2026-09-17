@@ -589,9 +589,85 @@
     align-items:center;
     justify-content:center;
     cursor:pointer;
-    background-color:var(--cell-color);
+    background-color:var(--fill, var(--cell-color));
     container-type:inline-size;
   }
+
+  /* ---------- Grid styles ----------
+     How the board is drawn, picked in Settings. A cell only carries which of
+     its sides border a different yard (e-t/e-b/e-l/e-r, set in renderBoard);
+     each style is just colours and widths on top of that. So switching style
+     needs no re-render, and the previews in Settings are drawn by these same
+     rules rather than a copy that could drift. Every style keeps a yard one
+     flat colour and every cell's edges visible - fills that varied within a
+     yard, or yards with no cell lines, were tried and ruled out. */
+  .board{ --edge-w:3px; --inner-w:1px; --yard-r:9px; }
+  [data-grid] .cell{
+    border-style:solid;
+    border-width:var(--inner-w);
+    border-color:var(--inner-c);
+    background-color:var(--fill);
+  }
+  [data-grid] .cell.e-t{ border-top-width:var(--edge-w); border-top-color:var(--edge-c); }
+  [data-grid] .cell.e-b{ border-bottom-width:var(--edge-w); border-bottom-color:var(--edge-c); }
+  [data-grid] .cell.e-l{ border-left-width:var(--edge-w); border-left-color:var(--edge-c); }
+  [data-grid] .cell.e-r{ border-right-width:var(--edge-w); border-right-color:var(--edge-c); }
+
+  [data-grid="classic"] .cell,
+  [data-grid="rounded"] .cell{
+    --fill:var(--cell-color); --inner-c:rgba(0,0,0,.14); --edge-c:var(--board-frame);
+  }
+  [data-grid="chalk"] .cell{
+    --fill:var(--cell-color); --inner-c:rgba(255,255,255,.55); --edge-c:var(--board-frame);
+  }
+  [data-grid="inked"] .cell{
+    --fill:var(--cell-color);
+    --inner-c:color-mix(in srgb, var(--cell-color) 80%, #000);
+    --edge-c:color-mix(in srgb, var(--cell-color) 55%, #000);
+  }
+  /* Outlined's cell lines are well above its fill on purpose. The first cut
+     put them only 5% apart - enough on a thumbnail, but on full-size cells
+     the lines all but vanished, and visible cells are the one rule every
+     style here has to keep. */
+  [data-grid="outlined"] .cell{
+    --fill:color-mix(in srgb, var(--cell-color) 30%, var(--surface));
+    --inner-c:color-mix(in srgb, var(--cell-color) 60%, var(--surface));
+    --edge-c:var(--cell-color);
+  }
+  [data-grid="softoutlined"] .cell{
+    --fill:color-mix(in srgb, var(--cell-color) 58%, var(--surface));
+    --inner-c:color-mix(in srgb, var(--cell-color) 85%, var(--surface));
+    --edge-c:color-mix(in srgb, var(--cell-color) 82%, #000);
+  }
+  .board[data-grid="outlined"], .board[data-grid="softoutlined"]{
+    background:var(--surface);
+    border:3px solid var(--board-frame);
+    padding:4px;
+  }
+  /* The loading line is white to sit on the dark frame. The outlined styles
+     put it on the page surface instead, where white would simply vanish. */
+  [data-grid="outlined"] .board-loading,
+  [data-grid="softoutlined"] .board-loading{ color:var(--ink-muted); }
+  [data-grid="rounded"] .cell.e-t.e-l{ border-top-left-radius:var(--yard-r); }
+  [data-grid="rounded"] .cell.e-t.e-r{ border-top-right-radius:var(--yard-r); }
+  [data-grid="rounded"] .cell.e-b.e-l{ border-bottom-left-radius:var(--yard-r); }
+  [data-grid="rounded"] .cell.e-b.e-r{ border-bottom-right-radius:var(--yard-r); }
+
+  /* Settings previews: a four-yard board at thumbnail size. */
+  .grid-row{ display:grid; grid-template-columns:repeat(3, 1fr); gap:.5rem; }
+  .grid-row .skin-btn{ padding:.45rem .2rem .35rem; gap:.3rem; }
+  .board.mini{
+    width:58px;
+    grid-template-columns:repeat(4, 1fr);
+    grid-template-rows:repeat(4, 1fr);
+    padding:3px;
+    border-radius:8px;
+    box-shadow:none;
+    pointer-events:none;
+    --edge-w:2px; --inner-w:1px; --yard-r:4px;
+  }
+  .board.mini[data-grid="outlined"], .board.mini[data-grid="softoutlined"]{ border-width:2px; padding:2px; }
+  .board.mini .cell{ animation:none; cursor:inherit; }
   /* Cells fade in with a diagonal stagger so a new board arrives deliberately
      rather than snapping in after the generation pause. */
   .cell{ animation:cellIn .44s cubic-bezier(.2,.9,.3,1) backwards; }
@@ -920,7 +996,7 @@
       </div>
 
       <div class="board-frame">
-        <div id="board" class="board" role="grid" aria-label="Corgdoku puzzle board"></div>
+        <div id="board" class="board" data-grid="classic" role="grid" aria-label="Corgdoku puzzle board"></div>
       </div>
 
       <!-- Filled in at startup from RULE_DIAGRAMS. The corgi and paw in each
@@ -1023,6 +1099,9 @@
     <p class="section-label backup-label">Style</p>
     <div class="scheme-row" id="schemeRow"></div>
 
+    <p class="section-label backup-label">Grid</p>
+    <div class="grid-row" id="gridStyleRow"></div>
+
     <p class="section-label backup-label">About</p>
     <div class="backup-row">
       <a class="link-out" href="terms.html" target="_blank" rel="noopener">Terms of Service</a>
@@ -1080,6 +1159,7 @@
   var playLevelNumEl = document.getElementById('playLevelNum');
   var nextLevelBtn = document.getElementById('nextLevelBtn');
   var schemeRowEl = document.getElementById('schemeRow');
+  var gridRowEl = document.getElementById('gridStyleRow');
   var skinGridEl = document.getElementById('skinGrid');
   var skinHintEl = document.getElementById('skinHint');
   var pawGridEl = document.getElementById('pawGrid');
@@ -1408,6 +1488,72 @@
       btn.style.background = 'linear-gradient(135deg, ' + scheme.accent + ', ' + scheme.regions[0] + ' 50%, ' + scheme.regions[2] + ')';
       btn.addEventListener('click', function(){ applyScheme(key); });
       schemeRowEl.appendChild(btn);
+    });
+  }
+
+  // ---------------------------------------------------------------------
+  // Grid styles - how the board is drawn, next to the colour scheme in
+  // Settings. Like the scheme it stays on this phone rather than syncing:
+  // it's taste per screen, not progress. The looks themselves live in CSS.
+  // ---------------------------------------------------------------------
+  var GRID_KEY = 'corgdoku_grid_v1';
+  var GRID_STYLES = [
+    {id:'classic',      name:'Classic'},
+    {id:'outlined',     name:'Outlined'},
+    {id:'softoutlined', name:'Soft Outlined'},
+    {id:'chalk',        name:'Chalk'},
+    {id:'inked',        name:'Inked'},
+    {id:'rounded',      name:'Rounded Yards'}
+  ];
+  var currentGrid = GRID_STYLES[0].id;
+
+  function applyGridStyle(id, persist){
+    var style = GRID_STYLES.filter(function(g){ return g.id === id; })[0] || GRID_STYLES[0];
+    currentGrid = style.id;
+    boardEl.setAttribute('data-grid', currentGrid);
+    if(persist !== false){
+      try{ localStorage.setItem(GRID_KEY, currentGrid); }catch(e){}
+    }
+    renderGridStyleRow();
+  }
+
+  // Four yards is enough to show every part a style changes: yard edges,
+  // cell lines, and corners where yards turn.
+  var GRID_PREVIEW = [
+    [0, 0, 1, 1],
+    [0, 2, 2, 1],
+    [3, 3, 2, 1],
+    [3, 3, 2, 2]
+  ];
+
+  function gridPreviewCells(){
+    var html = '';
+    for(var r = 0; r < 4; r++){
+      for(var c = 0; c < 4; c++){
+        var yard = GRID_PREVIEW[r][c], cls = 'cell';
+        if(r === 0 || GRID_PREVIEW[r-1][c] !== yard) cls += ' e-t';
+        if(r === 3 || GRID_PREVIEW[r+1][c] !== yard) cls += ' e-b';
+        if(c === 0 || GRID_PREVIEW[r][c-1] !== yard) cls += ' e-l';
+        if(c === 3 || GRID_PREVIEW[r][c+1] !== yard) cls += ' e-r';
+        html += '<span class="' + cls + '" style="--cell-color:var(--pack-' + yard + ')"></span>';
+      }
+    }
+    return html;
+  }
+
+  function renderGridStyleRow(){
+    var cells = gridPreviewCells();
+    gridRowEl.innerHTML = '';
+    GRID_STYLES.forEach(function(g){
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'skin-btn' + (g.id === currentGrid ? ' selected' : '');
+      btn.setAttribute('aria-label', g.name + ' grid');
+      btn.setAttribute('aria-pressed', g.id === currentGrid ? 'true' : 'false');
+      btn.innerHTML = '<span class="board mini" data-grid="' + g.id + '" aria-hidden="true">' + cells + '</span>' +
+        '<span class="skin-label">' + g.name + '</span>';
+      btn.addEventListener('click', function(){ applyGridStyle(g.id); });
+      gridRowEl.appendChild(btn);
     });
   }
 
@@ -3414,13 +3560,12 @@
         // right (c), which makes every cell on the same diagonal land together.
         cell.style.animationDelay = (((n - 1 - r) + c) * 48) + 'ms';
 
-        var outer = 3, inner = 1;
-        var borderColor = 'var(--board-frame)';
-        var innerColor = 'rgba(0,0,0,.14)';
-        cell.style.borderTop = (neighborsRegionDiffer(r,c,-1,0)?outer:inner)+'px solid ' + (neighborsRegionDiffer(r,c,-1,0)?borderColor:innerColor);
-        cell.style.borderBottom = (neighborsRegionDiffer(r,c,1,0)?outer:inner)+'px solid ' + (neighborsRegionDiffer(r,c,1,0)?borderColor:innerColor);
-        cell.style.borderLeft = (neighborsRegionDiffer(r,c,0,-1)?outer:inner)+'px solid ' + (neighborsRegionDiffer(r,c,0,-1)?borderColor:innerColor);
-        cell.style.borderRight = (neighborsRegionDiffer(r,c,0,1)?outer:inner)+'px solid ' + (neighborsRegionDiffer(r,c,0,1)?borderColor:innerColor);
+        // Only WHICH sides border another yard - how that's drawn belongs to
+        // the grid style (see the grid styles CSS).
+        if(neighborsRegionDiffer(r,c,-1,0)) cell.classList.add('e-t');
+        if(neighborsRegionDiffer(r,c,1,0)) cell.classList.add('e-b');
+        if(neighborsRegionDiffer(r,c,0,-1)) cell.classList.add('e-l');
+        if(neighborsRegionDiffer(r,c,0,1)) cell.classList.add('e-r');
 
         var iconWrap = document.createElement('span');
         iconWrap.className = 'icon-wrap';
@@ -3670,7 +3815,11 @@
     if(!cell) return;
     var rect = boardEl.getBoundingClientRect();
     var cs = getComputedStyle(boardEl);
-    var padL = parseFloat(cs.paddingLeft), padT = parseFloat(cs.paddingTop);
+    // The board's own border counts too - the outlined grid styles have one.
+    var inL = parseFloat(cs.paddingLeft) + parseFloat(cs.borderLeftWidth);
+    var inT = parseFloat(cs.paddingTop) + parseFloat(cs.borderTopWidth);
+    var inR = parseFloat(cs.paddingRight) + parseFloat(cs.borderRightWidth);
+    var inB = parseFloat(cs.paddingBottom) + parseFloat(cs.borderBottomWidth);
     var r = +cell.dataset.r, c = +cell.dataset.c;
     drag = {
       id: e.pointerId, r: r, c: c, x: e.clientX, y: e.clientY,
@@ -3678,9 +3827,9 @@
       // Measured off the board rather than the cells: cells are mid-animation
       // (scaled) while a fresh board arrives, the board itself never is.
       grid: {
-        left: rect.left + padL, top: rect.top + padT,
-        cw: (rect.width - padL - parseFloat(cs.paddingRight)) / n,
-        ch: (rect.height - padT - parseFloat(cs.paddingBottom)) / n
+        left: rect.left + inL, top: rect.top + inT,
+        cw: (rect.width - inL - inR) / n,
+        ch: (rect.height - inT - inB) / n
       },
       active: false, endKey: null, targets: []
     };
@@ -4259,6 +4408,9 @@
   var savedScheme = DEFAULT_SCHEME;
   try{ savedScheme = localStorage.getItem(SCHEME_KEY) || DEFAULT_SCHEME; }catch(e){}
   applyScheme(savedScheme);
+  var savedGrid = GRID_STYLES[0].id;
+  try{ savedGrid = localStorage.getItem(GRID_KEY) || savedGrid; }catch(e){}
+  applyGridStyle(savedGrid, false);
   var savedSkin = null, savedPaw = null;
   try{ savedSkin = localStorage.getItem(SKIN_KEY); savedPaw = localStorage.getItem(PAW_KEY); }catch(e){}
   buildRulesStrip();
