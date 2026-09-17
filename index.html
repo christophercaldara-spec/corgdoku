@@ -762,7 +762,7 @@
   /* A real 6-frame flipbook (see winDancerFrames in JS) replacing the old
      transform-only bounce on a static face. One corgi, not tied to whichever
      skin is equipped - same reasoning as the win sound and confetti being
-     universal: animating every one of the 62 skins was never going to happen. */
+     universal: animating every one of the skins was never going to happen. */
   .win-dancer{ width:120px; height:120px; display:block; }
   @keyframes corgiHop{
     0%, 60%, 100%{ transform:translateY(0) rotate(0deg); }
@@ -1431,10 +1431,17 @@
 
   // Unlocks are pegged to the level counter, which is the one number that only
   // ever goes up - so the climb hands out something to show for it. The first
-  // twelve came from the labeled reference sheet; the rest are the two bonus
-  // costume sheets from the same generation session, all earnable by level
-  // 1000 - close enough together early on to keep unlocks coming often, then
-  // spacing out toward the cap so the last few still feel like a reach.
+  // twelve came from the labeled reference sheet, then two bonus costume
+  // sheets, all earnable by level 1000 - close enough together early on to
+  // keep unlocks coming often, then spacing out toward the cap so the last few
+  // still feel like a reach.
+  //
+  // The merle-coated ten from a later sheet (pumpkin through snowpup) were
+  // slotted into gaps in that same schedule rather than tacked on past 1000,
+  // so the cap holds and no existing corgi's unlock level moved. That sheet
+  // had 25; the other 15 repeated a costume already here (a second witch hat,
+  // astronaut, cowboy...) and were left out on purpose, so collecting one
+  // never feels like getting a duplicate.
   var CORGI_SKINS = [
     {id:'classic', name:'Classic',     level:1},
     {id:'happy',   name:'Happy',       level:2},
@@ -1454,6 +1461,7 @@
     {id:'gentleman',  name:'Gentleman',   level:125},
     {id:'darling',    name:'Darling',     level:130},
     {id:'frosty',     name:'Frosty',      level:140},
+    {id:'superstar',  name:'Superstar',   level:145},
     {id:'lucky',      name:'Lucky',       level:150},
     {id:'smitten',    name:'Smitten',     level:155},
     {id:'dino',       name:'Dino',        level:165},
@@ -1462,40 +1470,49 @@
     {id:'jolly',      name:'Jolly',       level:200},
     {id:'officer',    name:'Officer',     level:215},
     {id:'topgun',     name:'Top Gun',     level:225},
+    {id:'pumpkin',    name:'Pumpkin',     level:232},
     {id:'blossom',    name:'Blossom',     level:240},
     {id:'astro',      name:'Astro',       level:255},
     {id:'sheriff',    name:'Sheriff',     level:270},
     {id:'buccaneer',  name:'Buccaneer',   level:285},
     {id:'retro',      name:'Retro',       level:300},
     {id:'rudolph',    name:'Rudolph',     level:315},
+    {id:'maple',      name:'Maple',       level:322},
     {id:'monocle',    name:'Monocle',     level:330},
     {id:'merlin',     name:'Merlin',      level:350},
     {id:'serene',     name:'Serene',      level:365},
     {id:'puddle',     name:'Puddle',      level:385},
+    {id:'fangs',      name:'Fangs',       level:395},
     {id:'maverick',   name:'Maverick',    level:405},
     {id:'unicorn',    name:'Unicorn',     level:425},
     {id:'rex',        name:'Rex',         level:440},
     {id:'nerdy',      name:'Nerdy',       level:460},
     {id:'boater',     name:'Boater',      level:480},
+    {id:'pilgrim',    name:'Pilgrim',     level:493},
     {id:'pirate',     name:'Pirate',      level:505},
     {id:'shark',      name:'Shark',       level:525},
     {id:'royal',      name:'Royal',       level:545},
     {id:'crush',      name:'Crush',       level:570},
+    {id:'boo',        name:'Boo',         level:580},
     {id:'chill',      name:'Chill',       level:590},
     {id:'ranger',     name:'Ranger',      level:615},
     {id:'sherlock',   name:'Sherlock',    level:635},
     {id:'dj',         name:'DJ',          level:660},
+    {id:'jingles',    name:'Jingles',     level:672},
     {id:'cadet',      name:'Cadet',       level:685},
     {id:'blitzen',    name:'Blitzen',     level:710},
     {id:'captain',    name:'Captain',     level:735},
     {id:'aviator',    name:'Aviator',     level:760},
+    {id:'batty',      name:'Batty',       level:772},
     {id:'shady',      name:'Shady',       level:785},
     {id:'witchy',     name:'Witchy',      level:810},
     {id:'clover',     name:'Clover',      level:835},
     {id:'sweetheart', name:'Sweetheart',  level:860},
+    {id:'snowpup',    name:'Snowpup',     level:875},
     {id:'snowflake',  name:'Snowflake',   level:890},
     {id:'rookie',     name:'Rookie',      level:915},
     {id:'angel',      name:'Angel',       level:945},
+    {id:'mischief',   name:'Mischief',    level:958},
     {id:'toughpup',   name:'Tough Pup',   level:970},
     {id:'cozy',       name:'Cozy',        level:1000}
   ];
@@ -1986,7 +2003,7 @@
   }
 
   // A running count of the unlock ladder, right under the wordmark where the
-  // cycling corgis already live - turns "there are 62 of these" into a
+  // cycling corgis already live - turns "there are dozens of these" into a
   // number that visibly climbs, the same way the other stats do. Kept out of
   // the stats grid itself so an odd total doesn't leave one tile dangling in
   // its own row.
@@ -4211,7 +4228,7 @@
     renderPawGrid();
     profileOverlay.hidden = false;
     pushScreen('profile');
-    // With 62 corgis, the sheet is a much longer scroll than the visible
+    // With dozens of corgis, the sheet is a much longer scroll than the visible
     // window - land on whichever one is actually equipped instead of always
     // opening at the very top. A short defer, not a rAF, so it still runs
     // even if the tab isn't actively rendering.
